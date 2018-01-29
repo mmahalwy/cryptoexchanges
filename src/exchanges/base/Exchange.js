@@ -26,7 +26,7 @@ class Exchange {
     this.validateBaseUrl();
 
     this.client = axios.create({
-      baseURL: this.constructor.baseUurl,
+      baseURL: this.constructor.baseUrl,
       timeout: this.timeout,
     });
 

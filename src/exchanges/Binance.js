@@ -6,7 +6,7 @@ import { precisionFromString } from '../utils/number';
 const BASE_URL = 'https://api.binance.com';
 
 class Binance extends Exchange {
-  getHeaders(path, queryString, nonce) {
+  getHeaders() {
     return {
       'X-MBX-APIKEY': this.apiKey,
     };
@@ -17,35 +17,35 @@ class Binance extends Exchange {
   }
 
   async fetchMarkets() {
-    let response = await this.request('get', '/exchangeInfo');
+    const response = await this.request('get', '/exchangeInfo');
 
     if (this.options.adjustForTimeDifference) {
       await this.loadTimeDifference();
     }
 
-    let markets = response.symbols;
-    let result = [];
+    const markets = response.symbols;
+    const result = [];
 
     markets.forEach((market) => {
-      let id = market.symbol;
+      const id = market.symbol;
 
       if (id === '123456') return;
 
-      let baseId = market.baseAsset;
-      let quoteId = market.quoteAsset;
-      let base = this.commonCurrencyCode(baseId);
-      let quote = this.commonCurrencyCode(quoteId);
-      let symbol = `${base}/${quote}`;
-      let filters = sortedIndexBy(market.filters, 'filterType');
-      let precision = {
+      const baseId = market.baseAsset;
+      const quoteId = market.quoteAsset;
+      const base = this.commonCurrencyCode(baseId);
+      const quote = this.commonCurrencyCode(quoteId);
+      const symbol = `${base}/${quote}`;
+      const filters = sortedIndexBy(market.filters, 'filterType');
+      const precision = {
         base: market.baseAssetPrecision,
         quote: market.quotePrecision,
         amount: market.baseAssetPrecision,
         price: market.quotePrecision,
       };
-      let active = market.status === 'TRADING';
-      let lot = -1 * Math.log10(precision.amount);
-      let entry = {
+      const active = market.status === 'TRADING';
+      const lot = -1 * Math.log10(precision.amount);
+      const entry = {
         ...this.fees.trading,
         id,
         symbol,
@@ -74,7 +74,7 @@ class Binance extends Exchange {
       };
 
       if ('PRICE_FILTER' in filters) {
-        let filter = filters.PRICE_FILTER;
+        const filter = filters.PRICE_FILTER;
 
         entry.precision.price = precisionFromString(filter.tickSize);
         entry.limits.price = {
@@ -84,7 +84,7 @@ class Binance extends Exchange {
       }
 
       if ('LOT_SIZE' in filters) {
-        let filter = filters.LOT_SIZE;
+        const filter = filters.LOT_SIZE;
 
         entry.precision.amount = precisionFromString(filter.stepSize);
         entry.lot = parseFloat(filter.stepSize);

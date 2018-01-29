@@ -16,22 +16,24 @@ class Kucoin extends Exchange {
   }
 
   async fetchMarkets() {
-    let response = await this.request('get', 'market/open/symbols');
-    let markets = response.data;
-    let result = [];
+    const response = await this.request('get', 'market/open/symbols');
+    const markets = response.data;
 
     return markets.map((market) => {
-      let id = market.symbol;
+      const id = market.symbol;
       let base = market.coinType;
       let quote = market.coinTypePair;
 
       base = this.commonCurrencyCode(base);
       quote = this.commonCurrencyCode(quote);
-      let precision = {
+
+      const symbol = `${base}/${quote}`;
+
+      const precision = {
         amount: 8,
         price: 8,
       };
-      let active = market.trading;
+      const active = market.trading;
 
       return {
         ...this.fees.trading,
@@ -41,11 +43,11 @@ class Kucoin extends Exchange {
         quote,
         active,
         info: market,
-        lot: Math.pow(10, -precision.amount),
+        lot: 10 ** -precision.amount,
         precision,
         limits: {
           amount: {
-            min: Math.pow(10, -precision.amount),
+            min: 10 ** -precision.amount,
             max: undefined,
           },
           price: {
@@ -58,20 +60,20 @@ class Kucoin extends Exchange {
   }
 
   async fetchCurrencies(params = {}) {
-    let { data: currencies } = await this.request(
+    const { data: currencies } = await this.request(
       'get',
       'market/open/coins',
       params,
     );
-    let result = {};
+    const result = {};
 
     currencies.forEeach((currency) => {
-      let id = currency.coin;
-      let code = this.commonCurrencyCode(id);
-      let precision = currency.tradePrecision;
-      let deposit = currency.enableDeposit;
-      let withdraw = currency.enableWithdraw;
-      let active = deposit && withdraw;
+      const id = currency.coin;
+      const code = this.commonCurrencyCode(id);
+      const precision = currency.tradePrecision;
+      const deposit = currency.enableDeposit;
+      const withdraw = currency.enableWithdraw;
+      const active = deposit && withdraw;
 
       result[code] = {
         id,
@@ -84,12 +86,12 @@ class Kucoin extends Exchange {
         precision,
         limits: {
           amount: {
-            min: Math.pow(10, -precision),
-            max: Math.pow(10, precision),
+            min: 10 ** -precision,
+            max: 10 ** precision,
           },
           price: {
-            min: Math.pow(10, -precision),
-            max: Math.pow(10, precision),
+            min: 10 ** -precision,
+            max: 10 ** precision,
           },
           cost: {
             min: undefined,
@@ -97,7 +99,7 @@ class Kucoin extends Exchange {
           },
           withdraw: {
             min: currency.withdrawMinAmount,
-            max: Math.pow(10, precision),
+            max: 10 ** precision,
           },
         },
       };
@@ -109,7 +111,7 @@ class Kucoin extends Exchange {
   async fetchBalance(params = {}) {
     await this.loadMarkets();
 
-    let {
+    const {
       data: balances,
     } = await this.signedRequest('get', 'account/balance', {
       limit: 20, // default 12, max 20
@@ -117,17 +119,17 @@ class Kucoin extends Exchange {
       ...params,
     });
 
-    let result = { info: balances };
-    let indexed = this.indexBy(balances, 'coinType');
-    let keys = Object.keys(indexed);
+    const result = { info: balances };
+    const indexed = this.indexBy(balances, 'coinType');
+    const keys = Object.keys(indexed);
 
     keys.forEach((id) => {
-      let currency = this.commonCurrencyCode(id);
-      let account = this.account();
-      let balance = indexed[id];
-      let used = parseFloat(balance.freezeBalance);
-      let free = parseFloat(balance.balance);
-      let total = this.sum(free, used);
+      const currency = this.commonCurrencyCode(id);
+      const account = this.account();
+      const balance = indexed[id];
+      const used = parseFloat(balance.freezeBalance);
+      const free = parseFloat(balance.balance);
+      const total = this.sum(free, used);
       account.free = free;
       account.used = used;
       account.total = total;
