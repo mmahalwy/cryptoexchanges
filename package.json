@@ -4,7 +4,8 @@
   "description": "A library for interacting with multiple crypto-currency exchanges",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "test": "npm run jest",
+    "jest": "jest"
   },
   "repository": {
     "type": "git",
@@ -25,12 +26,25 @@
   "homepage": "https://github.com/mmahalwy/ccel#readme",
   "dependencies": {
     "axios": "^0.17.1",
-    "lodash": "^4.17.4"
+    "es6-error": "^4.1.1",
+    "lodash": "^4.17.4",
+    "qs": "^6.5.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.0.0-beta.38",
+    "@babel/node": "^7.0.0-beta.38",
+    "@babel/plugin-proposal-class-properties": "^7.0.0-beta.38",
+    "@babel/preset-env": "^7.0.0-beta.38",
+    "babel-core": "^7.0.0-bridge.0",
+    "babel-eslint": "^7.2.3",
+    "babel-jest": "^22.1.0",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "eslint": "^4.16.0",
     "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-babel": "^4.1.2",
     "eslint-plugin-import": "^2.8.0",
-    "jest": "^22.1.4"
+    "eslint-plugin-jest": "^21.7.0",
+    "jest": "^22.1.4",
+    "regenerator-runtime": "^0.11.1"
   }
 }
