@@ -1,6 +1,6 @@
 import Exchange from './base/Exchange';
-
-const BASE_URL = 'https://api.kucoin.com/v1';
+import ExchangeError from './base/errors/ExchangeError';
+import { ORDER_TYPES, ORDER_SIDES } from '../constants';
 
 class Kucoin extends Exchange {
   getHeaders(path, queryString, nonce) {
@@ -16,7 +16,7 @@ class Kucoin extends Exchange {
   }
 
   async fetchMarkets() {
-    const response = await this.request('get', 'market/open/symbols');
+    const response = await this.api.public.get.marketOpenSymbols();
     const markets = response.data;
 
     return markets.map((market) => {
@@ -60,11 +60,7 @@ class Kucoin extends Exchange {
   }
 
   async fetchCurrencies(params = {}) {
-    const { data: currencies } = await this.request(
-      'get',
-      'market/open/coins',
-      params,
-    );
+    const { data: currencies } = await this.api.public.get.marketOpenCoins(params);
     const result = {};
 
     currencies.forEeach((currency) => {
@@ -108,12 +104,45 @@ class Kucoin extends Exchange {
     return result;
   }
 
+  parseTrade(trade, market = undefined) {
+    const timestamp = trade[0];
+    let side;
+
+    if (trade[1] === ORDER_SIDES.BUY) {
+      side = 'buy';
+    } else if (trade[1] === ORDER_SIDES.SELL) {
+      side = 'sell';
+    }
+
+    return {
+      id: undefined,
+      info: trade,
+      timestamp,
+      datetime: this.iso8601(timestamp),
+      symbol: market.symbol,
+      type: ORDER_TYPES.LIMIT,
+      side,
+      price: trade[2],
+      amount: trade[3],
+    };
+  }
+
+  async fetchTrades(symbol, since = undefined, limit = undefined, params = {}) {
+    await this.loadMarkets();
+
+    const market = this.market(symbol);
+    const response = await this.api.public.get.openDealOrders({
+      symbol: market.id,
+      ...params,
+    });
+
+    return this.parseTrades(response.data, market, since, limit);
+  }
+
   async fetchBalance(params = {}) {
     await this.loadMarkets();
 
-    const {
-      data: balances,
-    } = await this.signedRequest('get', 'account/balance', {
+    const { data: balances } = await this.api.private.get.accountBalance({
       limit: 20, // default 12, max 20
       page: 1,
       ...params,
@@ -138,13 +167,81 @@ class Kucoin extends Exchange {
 
     return this.parseBalance(result);
   }
+
+  async createOrder(
+    symbol,
+    type,
+    side,
+    amount,
+    price = undefined,
+    params = {},
+  ) {
+    if (type !== ORDER_TYPES.LIMIT) {
+      throw new ExchangeError(`${this.id} allows limit orders only`);
+    }
+
+    await this.loadMarkets();
+
+    const market = this.market(symbol);
+    const { base } = market;
+    const order = {
+      symbol: market.id,
+      type: side.toUpperCase(),
+      price: this.priceToPrecision(symbol, price),
+      amount: this.truncate(amount, this.currencies[base].precision),
+    };
+
+    const response = await this.api.private.postOrder({ ...order, ...params });
+
+    return {
+      info: response,
+      id: this.safeString(response.data, 'orderOid'),
+    };
+  }
+
+  async cancelOrder(id, symbol = undefined, params = {}) {
+    if (!symbol) {
+      throw new ExchangeError(`${this.id} cancelOrder requires symbol argument`);
+    }
+
+    await this.loadMarkets();
+
+    const market = this.market(symbol);
+    const request = {
+      symbol: market.id,
+      orderOid: id,
+    };
+
+    if ('type' in params) {
+      request.type = params.type.toUpperCase();
+    } else {
+      throw new ExchangeError(`${this.id} cancelOrder requires type (BUY or SELL) param`);
+    }
+
+    const response = await this.api.private.postCancelOrder({
+      ...request,
+      ...params,
+    });
+
+    return response;
+  }
 }
 
-Kucoin.baseUrl = BASE_URL;
 Kucoin.requiredConfig = ['apiKey', 'apiSecret'];
 Kucoin.trading = {
   maker: 0.0010,
   taker: 0.0010,
+};
+Kucoin.urls = {
+  logo: 'https://user-images.githubusercontent.com/1294454/33795655-b3c46e48-dcf6-11e7-8abe-dc4588ba7901.jpg',
+  api: {
+    public: 'https://api.kucoin.com',
+    private: 'https://api.kucoin.com',
+    kitchen: 'https://kitchen.kucoin.com',
+  },
+  www: 'https://kucoin.com',
+  doc: 'https://kucoinapidocs.docs.apiary.io',
+  fees: 'https://news.kucoin.com/en/fee',
 };
 Kucoin.api = {
   kitchen: {

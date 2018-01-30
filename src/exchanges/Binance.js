@@ -3,8 +3,6 @@ import sortedIndexBy from 'lodash/sortedIndexBy';
 import Exchange from './base/Exchange';
 import { precisionFromString } from '../utils/number';
 
-const BASE_URL = 'https://api.binance.com';
-
 class Binance extends Exchange {
   getHeaders() {
     return {
@@ -12,12 +10,8 @@ class Binance extends Exchange {
     };
   }
 
-  fetchUserInfo() {
-    return this.signedRequest('get', '/user/info');
-  }
-
   async fetchMarkets() {
-    const response = await this.request('get', '/exchangeInfo');
+    const response = await this.api.public.get.exchangeInfo();
 
     if (this.options.adjustForTimeDifference) {
       await this.loadTimeDifference();
@@ -105,13 +99,29 @@ class Binance extends Exchange {
   }
 }
 
-Binance.baseUrl = BASE_URL;
 Binance.requiredConfig = ['apiKey', 'apiSecret'];
 Binance.trading = {
   tierBased: false,
   percentage: true,
   taker: 0.001,
   maker: 0.001,
+};
+Binance.urls = {
+  logo: 'https://user-images.githubusercontent.com/1294454/29604020-d5483cdc-87ee-11e7-94c7-d1a8d9169293.jpg',
+  api: {
+    web: 'https://www.binance.com',
+    wapi: 'https://api.binance.com/wapi/v3',
+    public: 'https://api.binance.com/api/v1',
+    private: 'https://api.binance.com/api/v3',
+    v3: 'https://api.binance.com/api/v3',
+    v1: 'https://api.binance.com/api/v1',
+  },
+  www: 'https://www.binance.com',
+  doc: 'https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md',
+  fees: [
+    'https://binance.zendesk.com/hc/en-us/articles/115000429332',
+    'https://support.binance.com/hc/en-us/articles/115000583311',
+  ],
 };
 Binance.api = {
   web: {

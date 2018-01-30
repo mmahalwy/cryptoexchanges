@@ -12,6 +12,8 @@ import omit from 'lodash/omit';
 import camelCase from 'lodash/camelCase';
 
 import NotImplemented from './errors/NotImplemented';
+import ExchangeError from './errors/ExchangeError';
+import AuthenticationError from './errors/AuthenticationError';
 
 class Exchange {
   constructor({
@@ -23,10 +25,8 @@ class Exchange {
     this.password = password;
 
     this.validateRequiredConfig(apiKey, apiSecret, uid, password);
-    this.validateBaseUrl();
 
     this.client = axios.create({
-      baseURL: this.constructor.baseUrl,
       timeout: this.timeout,
     });
 
@@ -72,13 +72,18 @@ class Exchange {
     return signatureResult;
   }
 
-  request(method, endpoint, params) {
-    return this.rawRequest(method, endpoint, false, params);
-  }
+  request = (method, endpoint, params) =>
+    this.rawRequest(method, endpoint, false, params);
 
-  signedRequest(method, endpoint, params) {
+  signedRequest = (method, endpoint, params) => {
+    const containsAllParams = this.constructor.requiredConfig.every(param => this[param]);
+
+    if (!containsAllParams) {
+      throw new AuthenticationError(`Cannot sign request as ${this.constructor.requiredConfig.join(', ')} required`);
+    }
+
     return this.rawRequest(method, endpoint, true, params);
-  }
+  };
 
   commonCurrencyCode(currency) {
     if (!this.substituteCommonCurrencyCodes) return currency;
@@ -89,27 +94,31 @@ class Exchange {
     return currency;
   }
 
-  setApiMethods() {
-    this.api = { public: {}, private: {} };
+  setApiMethods = () => {
+    this.api = {};
 
-    forEach(this.constructor.api.public, (urlArray, method) => {
-      this.setApiMethodsFromArray(method, urlArray, false);
+    forEach(this.constructor.urls.api, (baseUrl, name) => {
+      this.api[name] = {};
+
+      forEach(this.constructor.api[name], (urlArray, method) => {
+        this.setApiMethodsFromArray(method, urlArray, name, baseUrl);
+      });
     });
+  };
 
-    forEach(this.constructor.api.private, (urlArray, method) => {
-      this.setApiMethodsFromArray(method, urlArray, true);
-    });
-  }
-
-  setApiMethodsFromArray(method, urlArray, isPrivate) {
-    const requestMethod = isPrivate ? this.signedRequest : this.request;
-    const type = isPrivate ? 'private' : 'public';
+  setApiMethodsFromArray = (method, urlArray, name, baseUrl) => {
+    const isPrivate = name === 'private';
 
     urlArray.forEach((url) => {
-      this.api[type][camelCase(url)] = params =>
-        requestMethod(method, url, params);
+      this.api[name][method] = this.api[name][method] || {};
+
+      this.api[name][method][camelCase(url)] = (params) => {
+        const requestMethod = isPrivate ? this.signedRequest : this.request;
+
+        return requestMethod(method, `${baseUrl}${url}`, params);
+      };
     });
-  }
+  };
 
   async loadMarkets(reload = false) {
     if (!reload && this.markets) {
@@ -210,20 +219,26 @@ class Exchange {
     return result;
   }
 
+  market(symbol) {
+    if (typeof this.markets === 'undefined') {
+      return new ExchangeError(`${this.id} markets not loaded`);
+    }
+
+    if (typeof symbol === 'string' && symbol in this.markets) {
+      return this.markets[symbol];
+    }
+
+    throw new ExchangeError(`${this.id} does not have market symbol ${symbol}`);
+  }
+
   // Validations
   validateRequiredConfig(apiKey, apiSecret, uid, password) {
     if (apiKey || apiSecret || uid || password) {
       const containsAllParams = this.constructor.requiredConfig.every(param => this[param]);
 
       if (!containsAllParams) {
-        throw new Error('Does not have all required params');
+        throw new ExchangeError('Does not have all required params');
       }
-    }
-  }
-
-  validateBaseUrl() {
-    if (!this.constructor.baseUrl) {
-      throw new Error('Exchange does not have base url set.');
     }
   }
 
