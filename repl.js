@@ -17,6 +17,18 @@ const log = async (promise) => {
   }
 };
 
+const json = async (promise) => {
+  try {
+    const response = await promise;
+    console.log(JSON.stringify(response));
+
+    return response;
+  } catch (e) {
+    console.error(e);
+    throw e;
+  }
+};
+
 const historyFile = path.join(os.homedir(), '.node_history');
 
 const replServer = repl.start({
@@ -30,5 +42,6 @@ replServer.context.binance = new Binance();
 replServer.context.Kucoin = Kucoin;
 replServer.context.kucoin = new Kucoin();
 replServer.context.log = log;
+replServer.context.json = json;
 
 require('repl.history')(replServer, historyFile);

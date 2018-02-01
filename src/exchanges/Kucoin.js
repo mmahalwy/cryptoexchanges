@@ -387,7 +387,7 @@ class Kucoin extends Exchange {
       resolution = 'D';
     }
 
-    let start = end - minutes * 60 * changedLimit;
+    let start = end - (minutes * 60 * changedLimit);
     if (typeof since !== 'undefined') {
       start = parseInt(since / 1000, 10);
       end = this.sum(start, minutes * 60 * changedLimit);
@@ -481,5 +481,6 @@ Kucoin.api = {
     ],
   },
 };
+Kucoin.signedApis = ['private'];
 
 export default Kucoin;

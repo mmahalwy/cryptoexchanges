@@ -5,12 +5,12 @@ import sortBy from 'lodash/sortBy';
 import keyBy from 'lodash/keyBy';
 import flatten from 'lodash/flatten';
 import merge from 'lodash/merge';
-import omit from 'lodash/omit';
 import camelCase from 'lodash/camelCase';
 import isString from 'lodash/isString';
 
 import ExchangeError from './errors/ExchangeError';
 import AuthenticationError from './errors/AuthenticationError';
+import { parseOHLCVs, parseOHLCV, parseBalance } from './parsers';
 
 const EMPTY_OBJECT = {};
 
@@ -42,8 +42,8 @@ class Exchange {
   tickers = {};
   orders = {};
   trades = {};
-  markets = {};
-  marketsById = {};
+  markets = null;
+  marketsById = null;
 
   async rawRequest(method, endpoint, signed = false, params = {}) {
     const path = endpoint;
@@ -51,13 +51,22 @@ class Exchange {
 
     const options = {
       url: path,
-      headers: this.getHeaders(),
+      headers: {},
       method,
       params,
     };
 
     if (signed) {
-      merge(options, this.sign(options, path, params, nonce));
+      merge(
+        options,
+        this.sign({
+          options,
+          path,
+          params,
+          nonce,
+          signed,
+        }),
+      );
     }
 
     try {
@@ -106,7 +115,7 @@ class Exchange {
   };
 
   setApiMethodsFromArray = (method, urlArray, name, baseUrl) => {
-    const isPrivate = name === 'private';
+    const isPrivate = this.constructor.signedApis.includes(name);
 
     urlArray.forEach((url) => {
       this.api[name][method] = this.api[name][method] || {};
@@ -124,7 +133,6 @@ class Exchange {
       if (!this.marketsById) {
         return this.setMarkets(this.markets);
       }
-
       return this.markets;
     }
 
@@ -193,35 +201,7 @@ class Exchange {
     return this.markets;
   }
 
-  parseBalance(balance) {
-    const currencies = Object.keys(omit(balance, 'info'));
-    const result = { ...balance };
-
-    currencies.forEach((currency) => {
-      if (typeof balance[currency].used === 'undefined') {
-        if (this.parseBalanceFromOpenOrders && 'open_orders' in balance.info) {
-          const exchangeOrdersCount = balance.info.open_orders;
-          const cachedOrdersCount = Object.values(this.orders).filter(order => order.status === 'open').length;
-          if (cachedOrdersCount === exchangeOrdersCount) {
-            result[currency].used = this.getCurrencyUsedOnOpenOrders(currency);
-            result[currency].total =
-              balance[currency].used + balance[currency].free;
-          }
-        } else {
-          result[currency].used = this.getCurrencyUsedOnOpenOrders(currency);
-          result[currency].total =
-            balance[currency].used + balance[currency].free;
-        }
-      }
-
-      ['free', 'used', 'total'].forEach((account) => {
-        result[account] = balance[account] || {};
-        result[account][currency] = balance[currency][account];
-      });
-    });
-
-    return result;
-  }
+  parseBalance = parseBalance;
 
   market(symbol) {
     if (this.markets === EMPTY_OBJECT) {
@@ -235,40 +215,9 @@ class Exchange {
     throw new ExchangeError(`${this.id} does not have market symbol ${symbol}`);
   }
 
-  // TODO: WTH?!
-  // eslint-disable-next-line
-  parseOHLCV(ohlcv) {
-    return ohlcv;
-  }
+  parseOHLCV = parseOHLCV;
 
-  parseOHLCVs(
-    ohlcvs,
-    market = undefined,
-    timeframe = '1m',
-    since = undefined,
-    limit = undefined,
-  ) {
-    const ohlcvsValues = Object.values(ohlcvs);
-    const result = [];
-
-    ohlcvsValues.forEach((ohlcvsValue) => {
-      if (limit && result.length >= limit) return null;
-
-      const ohlcv = this.parseOHLCV(
-        ohlcvsValue,
-        market,
-        timeframe,
-        since,
-        limit,
-      );
-
-      if (since && ohlcv[0] < since) return null;
-
-      return result.push(ohlcv);
-    });
-
-    return result;
-  }
+  parseOHLCVs = parseOHLCVs;
 
   costToPrecision(symbol, cost) {
     return parseFloat(cost).toFixed(this.markets[symbol].precision.price);
@@ -276,6 +225,22 @@ class Exchange {
 
   feeToPrecision(symbol, fee) {
     return parseFloat(fee).toFixed(this.markets[symbol].precision.price);
+  }
+
+  getCurrencyUsedOnOpenOrders(currency) {
+    return Object.values(this.orders)
+      .filter(order => order.status === 'open')
+      .reduce((total, order) => {
+        const { symbol } = order;
+        const market = this.markets[symbol];
+        const amount = order.remaining;
+        if (currency === market.base && order.side === 'sell') {
+          return total + amount;
+        } else if (currency === market.quote && order.side === 'buy') {
+          return total + (order.cost || order.price * amount);
+        }
+        return total;
+      }, 0);
   }
 
   // Validations

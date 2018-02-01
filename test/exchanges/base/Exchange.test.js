@@ -17,6 +17,7 @@ describe('Exchange', () => {
       };
 
       static requiredConfig = ['apiKey', 'apiSecret'];
+      static signedApis = [];
     }
 
     test('should error when passing incomplete required params', () => {
@@ -45,6 +46,7 @@ describe('Exchange', () => {
             kitchen: 'https://kitchen.exchange.com',
           },
         };
+        static signedApis = [];
       }
 
       const instance = new MyExchange();
@@ -58,7 +60,7 @@ describe('Exchange', () => {
       expect(instance.api.kitchen.get.urlOne).toBeTruthy();
     });
 
-    test('should call signedRequest when private', () => {
+    test.only('should call signedRequest when private', () => {
       class MyExchange extends Exchange {
         static api = {
           public: { get: ['url/one'] },
@@ -74,6 +76,8 @@ describe('Exchange', () => {
             kitchen: 'https://kitchen.exchange.com',
           },
         };
+
+        static signedApis = ['private'];
 
         getHeaders() {
           return { key: this.apiKey };
@@ -105,6 +109,7 @@ describe('Exchange', () => {
             kitchen: 'https://kitchen.exchange.com',
           },
         };
+        static signedApis = ['private'];
 
         getHeaders() {
           return { key: this.apiKey };
