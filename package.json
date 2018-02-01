@@ -1,12 +1,12 @@
 {
-  "name": "ccel",
+  "name": "cryptoexchanges",
   "version": "1.0.0",
   "description": "A library for interacting with multiple crypto-currency exchanges",
   "main": "index.js",
   "scripts": {
     "test": "npm run jest",
     "jest": "jest",
-    "repl": "babel-node ./repl.js"
+    "repl": "babel-node ./repl.js --source-maps"
   },
   "repository": {
     "type": "git",

@@ -1,19 +1,18 @@
-import crypto from 'crypto';
 import axios from 'axios';
-import qs from 'qs';
-import isEmpty from 'lodash/isEmpty';
 import forEach from 'lodash/forEach';
 import groupBy from 'lodash/groupBy';
 import sortBy from 'lodash/sortBy';
-import sortedIndexBy from 'lodash/sortedIndexBy';
+import keyBy from 'lodash/keyBy';
 import flatten from 'lodash/flatten';
 import merge from 'lodash/merge';
 import omit from 'lodash/omit';
 import camelCase from 'lodash/camelCase';
+import isString from 'lodash/isString';
 
-import NotImplemented from './errors/NotImplemented';
 import ExchangeError from './errors/ExchangeError';
 import AuthenticationError from './errors/AuthenticationError';
+
+const EMPTY_OBJECT = {};
 
 class Exchange {
   constructor({
@@ -34,6 +33,8 @@ class Exchange {
   }
 
   substituteCommonCurrencyCodes = true;
+  adjustForTimeDifference = false;
+  timeDifference = null;
   timeout = 1000;
 
   balance = {};
@@ -41,35 +42,33 @@ class Exchange {
   tickers = {};
   orders = {};
   trades = {};
+  markets = {};
+  marketsById = {};
 
-  rawRequest(method, endpoint, signed = false, params = {}) {
+  async rawRequest(method, endpoint, signed = false, params = {}) {
     const path = endpoint;
     const nonce = new Date().getTime();
-    const isParamsEmpty = isEmpty(params);
-    const queryString = isParamsEmpty ? '' : qs.stringify(params);
 
     const options = {
-      url: `${path}${isParamsEmpty ? '' : `?${queryString}`}`,
-      headers: {},
+      url: path,
+      headers: this.getHeaders(),
       method,
+      params,
     };
 
     if (signed) {
-      options.headers = this.getHeaders(path, queryString, nonce);
+      merge(options, this.sign(options, path, params, nonce));
     }
 
-    return this.client(options);
-  }
+    try {
+      const response = await this.client(options);
 
-  getSignature(path, queryString, nonce) {
-    const strForSign = `${path}/${nonce}/${queryString}`;
-    const signatureStr = Buffer.from(strForSign).toString('base64');
-    const signatureResult = crypto
-      .createHmac('sha256', this.apiSecret)
-      .update(signatureStr)
-      .digest('hex');
+      return response.data;
+    } catch (e) {
+      console.error(e);
 
-    return signatureResult;
+      throw e;
+    }
   }
 
   request = (method, endpoint, params) =>
@@ -125,13 +124,17 @@ class Exchange {
       if (!this.marketsById) {
         return this.setMarkets(this.markets);
       }
+
       return this.markets;
     }
+
     const markets = await this.fetchMarkets();
     let currencies;
-    if (this.has.fetchCurrencies) {
+
+    if (this.fetchCurrencies) {
       currencies = await this.fetchCurrencies();
     }
+
     return this.setMarkets(markets, currencies);
   }
 
@@ -142,14 +145,15 @@ class Exchange {
           limits: this.limits,
           precision: this.precision,
         },
-        this.fees.trading,
+        this.constructor.fees.trading,
         market,
       ));
-    this.markets = merge(this.markets, sortedIndexBy(values, 'symbol'));
-    this.marketsById = sortedIndexBy(markets, 'id');
-    this.markets_by_id = this.marketsById;
+
+    this.markets = merge(this.markets, keyBy(values, 'symbol'));
+    this.marketsById = keyBy(markets, 'id');
     this.symbols = Object.keys(this.markets).sort();
-    this.ids = Object.keys(this.markets_by_id).sort();
+    this.ids = Object.keys(this.marketsById).sort();
+
     if (currencies) {
       this.currencies = merge(currencies, this.currencies);
     } else {
@@ -180,12 +184,12 @@ class Exchange {
           groupedCurrencies[code][0],
         ));
       const sortedCurrencies = sortBy(flatten(currentCurrencies), 'code');
-      this.currencies = merge(
-        sortedIndexBy(sortedCurrencies, 'code'),
-        this.currencies,
-      );
+
+      this.currencies = merge(keyBy(sortedCurrencies, 'code'), this.currencies);
     }
-    this.currencies_by_id = sortedIndexBy(this.currencies, 'id');
+
+    this.currencies_by_id = keyBy(this.currencies, 'id');
+
     return this.markets;
   }
 
@@ -220,18 +224,62 @@ class Exchange {
   }
 
   market(symbol) {
-    if (typeof this.markets === 'undefined') {
+    if (this.markets === EMPTY_OBJECT) {
       return new ExchangeError(`${this.id} markets not loaded`);
     }
 
-    if (typeof symbol === 'string' && symbol in this.markets) {
+    if (isString(symbol) && this.markets[symbol]) {
       return this.markets[symbol];
     }
 
     throw new ExchangeError(`${this.id} does not have market symbol ${symbol}`);
   }
 
+  // TODO: WTH?!
+  // eslint-disable-next-line
+  parseOHLCV(ohlcv) {
+    return ohlcv;
+  }
+
+  parseOHLCVs(
+    ohlcvs,
+    market = undefined,
+    timeframe = '1m',
+    since = undefined,
+    limit = undefined,
+  ) {
+    const ohlcvsValues = Object.values(ohlcvs);
+    const result = [];
+
+    ohlcvsValues.forEach((ohlcvsValue) => {
+      if (limit && result.length >= limit) return null;
+
+      const ohlcv = this.parseOHLCV(
+        ohlcvsValue,
+        market,
+        timeframe,
+        since,
+        limit,
+      );
+
+      if (since && ohlcv[0] < since) return null;
+
+      return result.push(ohlcv);
+    });
+
+    return result;
+  }
+
+  costToPrecision(symbol, cost) {
+    return parseFloat(cost).toFixed(this.markets[symbol].precision.price);
+  }
+
+  feeToPrecision(symbol, fee) {
+    return parseFloat(fee).toFixed(this.markets[symbol].precision.price);
+  }
+
   // Validations
+  // TODO: Move this elsewhere
   validateRequiredConfig(apiKey, apiSecret, uid, password) {
     if (apiKey || apiSecret || uid || password) {
       const containsAllParams = this.constructor.requiredConfig.every(param => this[param]);
@@ -245,7 +293,7 @@ class Exchange {
   // Methods to override
   // eslint-disable-next-line class-methods-use-this
   getHeaders() {
-    throw new NotImplemented('`getHeaders` not implemented');
+    return {};
   }
 }
 
