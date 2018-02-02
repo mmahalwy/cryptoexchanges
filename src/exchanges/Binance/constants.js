@@ -1,6 +1,6 @@
-export const requiredConfig = ['apiKey', 'apiSecret'];
+export const REQUIRED_CREDENTIALS = ['apiKey', 'apiSecret'];
 
-export const urls = {
+export const URLS = {
   logo: 'https://user-images.githubusercontent.com/1294454/29604020-d5483cdc-87ee-11e7-94c7-d1a8d9169293.jpg',
   api: {
     web: 'https://www.binance.com',
@@ -12,13 +12,13 @@ export const urls = {
   },
   www: 'https://www.binance.com',
   doc: 'https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md',
-  fees: [
+  FEES: [
     'https://binance.zendesk.com/hc/en-us/articles/115000429332',
     'https://support.binance.com/hc/en-us/articles/115000583311',
   ],
 };
 
-export const fees = {
+export const FEES = {
   trading: {
     tierBased: false,
     percentage: true,
@@ -27,7 +27,7 @@ export const fees = {
   },
 };
 
-export const api = {
+export const API = {
   web: {
     get: ['/exchange/public/product'],
   },
@@ -65,7 +65,8 @@ export const api = {
   },
 };
 
-export const methods = [
+export const METHODS = [
+  'fetchMarkets',
   'fetchDepositAddress',
   'fetchTickers',
   'fetchOHLCV',
@@ -76,7 +77,7 @@ export const methods = [
   'withdraw',
 ];
 
-export const signedApis = ['private', 'wapi'];
+export const SIGNED_APIS = ['private', 'wapi'];
 
 export const NULL_ID = '123456';
 export const MAKER = 'maker';

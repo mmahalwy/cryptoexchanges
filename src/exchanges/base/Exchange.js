@@ -84,10 +84,10 @@ class Exchange {
     this.rawRequest(method, endpoint, false, params);
 
   signedRequest = (method, endpoint, params) => {
-    const containsAllParams = this.constructor.requiredConfig.every(param => this[param]);
+    const containsAllParams = this.constructor.REQUIRED_CREDENTIALS.every(param => this[param]);
 
     if (!containsAllParams) {
-      throw new AuthenticationError(`Cannot sign request as ${this.constructor.requiredConfig.join(', ')} required`);
+      throw new AuthenticationError(`Cannot sign request as ${this.constructor.REQUIRED_CREDENTIALS.join(', ')} required`);
     }
 
     return this.rawRequest(method, endpoint, true, params);
@@ -105,17 +105,17 @@ class Exchange {
   setApiMethods = () => {
     this.api = {};
 
-    forEach(this.constructor.urls.api, (baseUrl, name) => {
+    forEach(this.constructor.URLS.api, (baseUrl, name) => {
       this.api[name] = {};
 
-      forEach(this.constructor.api[name], (urlArray, method) => {
+      forEach(this.constructor.API[name], (urlArray, method) => {
         this.setApiMethodsFromArray(method, urlArray, name, baseUrl);
       });
     });
   };
 
   setApiMethodsFromArray = (method, urlArray, name, baseUrl) => {
-    const isPrivate = this.constructor.signedApis.includes(name);
+    const isPrivate = this.constructor.SIGNED_APIS.includes(name);
 
     urlArray.forEach((url) => {
       this.api[name][method] = this.api[name][method] || {};
@@ -153,7 +153,7 @@ class Exchange {
           limits: this.limits,
           precision: this.precision,
         },
-        this.constructor.fees.trading,
+        this.constructor.FEES.trading,
         market,
       ));
 
@@ -247,7 +247,7 @@ class Exchange {
   // TODO: Move this elsewhere
   validateRequiredConfig(apiKey, apiSecret, uid, password) {
     if (apiKey || apiSecret || uid || password) {
-      const containsAllParams = this.constructor.requiredConfig.every(param => this[param]);
+      const containsAllParams = this.constructor.REQUIRED_CREDENTIALS.every(param => this[param]);
 
       if (!containsAllParams) {
         throw new ExchangeError('Does not have all required params');
@@ -256,7 +256,7 @@ class Exchange {
   }
 
   // Methods to override
-  // eslint-disable-next-line class-methods-use-this
+  // eslint-disable-next-line class-METHODS-use-this
   getHeaders() {
     return {};
   }

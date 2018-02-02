@@ -4,6 +4,7 @@ import path from 'path';
 
 import Binance from './src/exchanges/Binance';
 import Kucoin from './src/exchanges/Kucoin';
+import Gdax from './src/exchanges/Gdax';
 
 const log = async (promise) => {
   try {
@@ -41,6 +42,8 @@ replServer.context.Binance = Binance;
 replServer.context.binance = new Binance();
 replServer.context.Kucoin = Kucoin;
 replServer.context.kucoin = new Kucoin();
+replServer.context.Gdax = Gdax;
+replServer.context.gdax = new Gdax();
 replServer.context.log = log;
 replServer.context.json = json;
 

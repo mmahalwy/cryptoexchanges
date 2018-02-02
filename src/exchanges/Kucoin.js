@@ -52,7 +52,7 @@ class Kucoin extends Exchange {
       const active = market.trading;
 
       return {
-        ...this.constructor.fees.trading,
+        ...this.constructor.FEES.trading,
         id,
         symbol,
         base,
@@ -416,8 +416,8 @@ class Kucoin extends Exchange {
   }
 }
 
-Kucoin.requiredConfig = ['apiKey', 'apiSecret'];
-Kucoin.urls = {
+Kucoin.REQUIRED_CREDENTIALS = ['apiKey', 'apiSecret'];
+Kucoin.URLS = {
   logo: 'https://user-images.githubusercontent.com/1294454/33795655-b3c46e48-dcf6-11e7-8abe-dc4588ba7901.jpg',
   api: {
     public: 'https://api.kucoin.com/v1',
@@ -426,15 +426,15 @@ Kucoin.urls = {
   },
   www: 'https://kucoin.com',
   doc: 'https://kucoinapidocs.docs.apiary.io',
-  fees: 'https://news.kucoin.com/en/fee',
+  FEES: 'https://news.kucoin.com/en/fee',
 };
-Kucoin.fees = {
+Kucoin.FEES = {
   trading: {
     maker: 0.0010,
     taker: 0.0010,
   },
 };
-Kucoin.api = {
+Kucoin.API = {
   kitchen: {
     get: ['/open/chart/history'],
   },
@@ -481,6 +481,6 @@ Kucoin.api = {
     ],
   },
 };
-Kucoin.signedApis = ['private'];
+Kucoin.SIGNED_APIS = ['private'];
 
 export default Kucoin;

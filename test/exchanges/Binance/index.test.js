@@ -1,5 +1,5 @@
 import Binance from '../../../src/exchanges/Binance';
-import { methods } from '../../../src/exchanges/Binance/constants';
+import { METHODS } from '../../../src/exchanges/Binance/constants';
 
 let binance;
 const markets = [
@@ -113,7 +113,7 @@ describe('Binance', () => {
     binance = new Binance({ apiKey: 'key', apiSecret: 'secret' });
   });
 
-  methods.forEach((method) => {
+  METHODS.forEach((method) => {
     test(`should contain required method ${method}`, () => {
       expect(binance[method]).toBeTruthy();
     });

@@ -166,7 +166,7 @@ export const currencyId = (currency) => {
   return currency;
 };
 
-export const parseMarkets = (markets, fees) => {
+export const parseMarkets = (markets, FEES) => {
   const result = [];
 
   markets.forEach((market) => {
@@ -189,7 +189,7 @@ export const parseMarkets = (markets, fees) => {
     const active = market.status === MARKET_STATUS.TRADING;
     const lot = -1 * Math.log10(precision.amount);
     const entry = {
-      ...fees.trading,
+      ...FEES.trading,
       id,
       symbol,
       base,

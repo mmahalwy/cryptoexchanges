@@ -7,7 +7,7 @@ describe('Exchange', () => {
         public: { get: ['url/one'] },
       };
 
-      static urls = {
+      static URLS = {
         logo: 'logo',
         api: {
           public: 'https://api.exchange.com',
@@ -16,8 +16,8 @@ describe('Exchange', () => {
         },
       };
 
-      static requiredConfig = ['apiKey', 'apiSecret'];
-      static signedApis = [];
+      static REQUIRED_CREDENTIALS = ['apiKey', 'apiSecret'];
+      static SIGNED_APIS = [];
     }
 
     test('should error when passing incomplete required params', () => {
@@ -29,8 +29,8 @@ describe('Exchange', () => {
     });
   });
 
-  describe('api methods', () => {
-    test('should set api methods', () => {
+  describe('api METHODS', () => {
+    test('should set api METHODS', () => {
       class MyExchange extends Exchange {
         static api = {
           public: { get: ['url/one'] },
@@ -38,7 +38,7 @@ describe('Exchange', () => {
           kitchen: { get: ['url/one'] },
         };
 
-        static urls = {
+        static URLS = {
           logo: 'logo',
           api: {
             public: 'https://api.exchange.com',
@@ -46,7 +46,7 @@ describe('Exchange', () => {
             kitchen: 'https://kitchen.exchange.com',
           },
         };
-        static signedApis = [];
+        static SIGNED_APIS = [];
       }
 
       const instance = new MyExchange();
@@ -68,7 +68,7 @@ describe('Exchange', () => {
           kitchen: { get: ['url/one'] },
         };
 
-        static urls = {
+        static URLS = {
           logo: 'logo',
           api: {
             public: 'https://api.exchange.com',
@@ -77,7 +77,7 @@ describe('Exchange', () => {
           },
         };
 
-        static signedApis = ['private'];
+        static SIGNED_APIS = ['private'];
 
         getHeaders() {
           return { key: this.apiKey };
@@ -101,7 +101,7 @@ describe('Exchange', () => {
           kitchen: { get: ['url/one'] },
         };
 
-        static urls = {
+        static URLS = {
           logo: 'logo',
           api: {
             public: 'https://api.exchange.com',
@@ -109,7 +109,7 @@ describe('Exchange', () => {
             kitchen: 'https://kitchen.exchange.com',
           },
         };
-        static signedApis = ['private'];
+        static SIGNED_APIS = ['private'];
 
         getHeaders() {
           return { key: this.apiKey };

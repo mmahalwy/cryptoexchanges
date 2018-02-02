@@ -8,11 +8,11 @@ import ExchangeError from '../base/errors/ExchangeError';
 
 import { milliseconds } from '../../utils/time';
 import {
-  requiredConfig,
-  urls,
-  fees,
-  api,
-  signedApis,
+  REQUIRED_CREDENTIALS,
+  URLS,
+  FEES,
+  API,
+  SIGNED_APIS,
   TAKER,
   ORDER_TYPE,
   TIME_IN_FORCE,
@@ -30,11 +30,11 @@ import {
 import { parseBalance, parseOrderBook } from '../base/parsers';
 
 class Binance extends Exchange {
-  static requiredConfig = requiredConfig;
-  static urls = urls;
-  static fees = fees;
-  static api = api;
-  static signedApis = signedApis;
+  static REQUIRED_CREDENTIALS = REQUIRED_CREDENTIALS;
+  static URLS = URLS;
+  static FEES = FEES;
+  static API = API;
+  static SIGNED_APIS = SIGNED_APIS;
 
   getHeaders(signed) {
     if (!signed) return {};
@@ -96,7 +96,7 @@ class Binance extends Exchange {
 
     const markets = response.symbols;
 
-    return parseMarkets(markets, this.constructor.fees);
+    return parseMarkets(markets, this.constructor.FEES);
   }
 
   calculateFee(symbol, type, side, amount, price, takerOrMaker = TAKER) {
