@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 
 import Binance from './src/exchanges/Binance';
-import Kucoin from './src/exchanges/Kucoin';
+// import Kucoin from './src/exchanges/Kucoin';
 import Gdax from './src/exchanges/Gdax';
 
 const log = async (promise) => {
@@ -40,8 +40,8 @@ const replServer = repl.start({
 // attach my modules to the repl context
 replServer.context.Binance = Binance;
 replServer.context.binance = new Binance();
-replServer.context.Kucoin = Kucoin;
-replServer.context.kucoin = new Kucoin();
+// replServer.context.Kucoin = Kucoin;
+// replServer.context.kucoin = new Kucoin();
 replServer.context.Gdax = Gdax;
 replServer.context.gdax = new Gdax();
 replServer.context.log = log;

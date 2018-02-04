@@ -1,7 +1,7 @@
 import toInteger from 'lodash/toInteger';
+import sum from 'lodash/sum';
 
-import Exchange from '../base/Exchange';
-import { parseBalance, parseOrderBook } from '../base/parsers';
+import BaseExchange from '../base/BaseExchange';
 import {
   REQUIRED_CREDENTIALS,
   URLS,
@@ -12,11 +12,12 @@ import {
   NON_BTC_TAKER,
   MARKET_STATUS,
 } from './constants';
-import { parseTrades } from './parsers';
+import GdaxParser from './GdaxParser';
 import { precisionFromString } from '../../utils/number';
-import { iso8601, parse8601 } from '../../utils/time';
+import { iso8601, parse8601, ymdhms } from '../../utils/time';
 
-class Gdax extends Exchange {
+class Gdax extends BaseExchange {
+  static Parser = GdaxParser;
   static REQUIRED_CREDENTIALS = REQUIRED_CREDENTIALS;
   static URLS = URLS;
   static FEES = FEES;
@@ -27,6 +28,7 @@ class Gdax extends Exchange {
     const markets = await this.api.public.get.products();
 
     const result = [];
+
     markets.forEach((market) => {
       const { id } = market;
       const base = market.base_currency;
@@ -69,7 +71,7 @@ class Gdax extends Exchange {
         },
         taker,
         active,
-        info: market,
+        ...this.parser.infoField(market),
       });
     });
 
@@ -80,7 +82,7 @@ class Gdax extends Exchange {
     await this.loadMarkets();
 
     const balances = await this.api.private.get.accounts();
-    const result = { info: balances };
+    const result = { ...this.parser.infoField(balances) };
 
     balances.forEach((balance) => {
       const { currency } = balance;
@@ -93,7 +95,7 @@ class Gdax extends Exchange {
       result[currency] = account;
     });
 
-    return parseBalance(result);
+    return this.parsers.parseBalance(result);
   }
 
   async fetchOrderBook(symbol, params = {}) {
@@ -104,7 +106,7 @@ class Gdax extends Exchange {
       ...params,
     });
 
-    return parseOrderBook(orderbook);
+    return this.parsers.parseOrderBook(orderbook);
   }
 
   async fetchTicker(symbol, params = {}) {
@@ -141,16 +143,11 @@ class Gdax extends Exchange {
       average: undefined,
       baseVolume: toInteger(ticker.volume),
       quoteVolume: undefined,
-      info: ticker,
+      ...this.parser.infoField(ticker),
     };
   }
 
-  async fetchMyTrades(
-    symbol = undefined,
-    since = undefined,
-    limit = undefined,
-    params = {},
-  ) {
+  async fetchMyTrades(symbol, since, limit, params = {}) {
     await this.loadMarkets();
 
     let market;
@@ -170,10 +167,10 @@ class Gdax extends Exchange {
       ...params,
     });
 
-    return parseTrades(response, market, since, limit, this.marketsById);
+    return this.parsers.parseTrades(response, market, since, limit, this.marketsById);
   }
 
-  async fetchTrades(symbol, since = undefined, limit = undefined, params = {}) {
+  async fetchTrades(symbol, since, limit, params = {}) {
     await this.loadMarkets();
 
     const market = this.market(symbol);
@@ -182,7 +179,60 @@ class Gdax extends Exchange {
       ...params,
     });
 
-    return parseTrades(response, market, since, limit, this.marketsById);
+    return this.parsers.parseTrades(response, market, since, limit, this.marketsById);
+  }
+
+  async fetchOHLCV(symbol, timeframe = '1m', since, limit, params = {}) {
+    await this.loadMarkets();
+    const market = this.market(symbol);
+    const granularity = this.timeframes[timeframe];
+    const request = {
+      id: market.id,
+      granularity,
+    };
+    if (typeof since !== 'undefined') {
+      request.start = ymdhms(since);
+      if (typeof limit === 'undefined') {
+        // https://docs.gdax.com/#get-historic-rates
+        limit = 350; // max = 350
+      }
+
+      request.end = ymdhms(sum([limit * granularity * 1000, since]));
+    }
+    const response = await this.api.public.get.productsIdCandles({ ...request, ...params });
+
+    return this.parsers.parseOHLCVs(response, market, timeframe, since, limit);
+  }
+
+  async fetchTime() {
+    const response = await this.api.public.get.time();
+
+    return parse8601(response.iso);
+  }
+
+  async fetchOrder(id, symbol, params = {}) {
+    await this.loadMarkets();
+
+    const response = await this.api.private.get.ordersId({
+      id,
+      ...params,
+    });
+
+    return this.parsers.parseOrder(response);
+  }
+
+  async fetchOrders(symbol, since, limit, params = {}) {
+    await this.loadMarkets();
+    const request = {
+      status: 'all',
+    };
+    let market;
+    if (symbol) {
+      market = this.market(symbol);
+      request.product_id = market.id;
+    }
+    const response = await this.api.private.get.orders({ ...request, ...params });
+    return this.parsers.parseOrders(response, market, since, limit);
   }
 }
 

@@ -10,24 +10,28 @@ import isString from 'lodash/isString';
 
 import ExchangeError from './errors/ExchangeError';
 import AuthenticationError from './errors/AuthenticationError';
-import { parseOHLCVs, parseOHLCV, parseBalance } from './parsers';
 
 const EMPTY_OBJECT = {};
 
 class Exchange {
   constructor({
-    apiKey, apiSecret, uid, password,
+    apiKey, apiSecret, uid, password, includeInfo = false,
   } = {}) {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
     this.uid = uid;
     this.password = password;
 
+    this.includeInfo = includeInfo;
+
     this.validateRequiredConfig(apiKey, apiSecret, uid, password);
+    this.validateParser();
 
     this.client = axios.create({
       timeout: this.timeout,
     });
+
+    this.parser = new this.constructor.Parser({ includeInfo });
 
     this.setApiMethods();
   }
@@ -80,8 +84,7 @@ class Exchange {
     }
   }
 
-  request = (method, endpoint, params) =>
-    this.rawRequest(method, endpoint, false, params);
+  request = (method, endpoint, params) => this.rawRequest(method, endpoint, false, params);
 
   signedRequest = (method, endpoint, params) => {
     const containsAllParams = this.constructor.REQUIRED_CREDENTIALS.every(param => this[param]);
@@ -165,30 +168,21 @@ class Exchange {
     if (currencies) {
       this.currencies = merge(currencies, this.currencies);
     } else {
-      const baseCurrencies = values
-        .filter(market => 'base' in market)
-        .map(market => ({
-          id: market.baseId || market.base,
-          code: market.base,
-          precision: market.precision
-            ? market.precision.base || market.precision.amount
-            : 8,
-        }));
-      const quoteCurrencies = values
-        .filter(market => 'quote' in market)
-        .map(market => ({
-          id: market.quoteId || market.quote,
-          code: market.quote,
-          precision: market.precision
-            ? market.precision.quote || market.precision.price
-            : 8,
-        }));
+      const baseCurrencies = values.filter(market => 'base' in market).map(market => ({
+        id: market.baseId || market.base,
+        code: market.base,
+        precision: market.precision ? market.precision.base || market.precision.amount : 8,
+      }));
+      const quoteCurrencies = values.filter(market => 'quote' in market).map(market => ({
+        id: market.quoteId || market.quote,
+        code: market.quote,
+        precision: market.precision ? market.precision.quote || market.precision.price : 8,
+      }));
       const allCurrencies = baseCurrencies.concat(quoteCurrencies);
       const groupedCurrencies = groupBy(allCurrencies, 'code');
       const currentCurrencies = Object.keys(groupedCurrencies).map(code =>
         groupedCurrencies[code].reduce(
-          (previous, current) =>
-            (previous.precision > current.precision ? previous : current),
+          (previous, current) => (previous.precision > current.precision ? previous : current),
           groupedCurrencies[code][0],
         ));
       const sortedCurrencies = sortBy(flatten(currentCurrencies), 'code');
@@ -201,8 +195,6 @@ class Exchange {
     return this.markets;
   }
 
-  parseBalance = parseBalance;
-
   market(symbol) {
     if (this.markets === EMPTY_OBJECT) {
       return new ExchangeError(`${this.id} markets not loaded`);
@@ -214,10 +206,6 @@ class Exchange {
 
     throw new ExchangeError(`${this.id} does not have market symbol ${symbol}`);
   }
-
-  parseOHLCV = parseOHLCV;
-
-  parseOHLCVs = parseOHLCVs;
 
   costToPrecision(symbol, cost) {
     return parseFloat(cost).toFixed(this.markets[symbol].precision.price);
@@ -255,8 +243,14 @@ class Exchange {
     }
   }
 
+  validateParser() {
+    if (!this.constructor.Parser) {
+      throw new ExchangeError('Does not have parser set');
+    }
+  }
+
   // Methods to override
-  // eslint-disable-next-line class-METHODS-use-this
+  // eslint-disable-next-line class-methods-use-this
   getHeaders() {
     return {};
   }

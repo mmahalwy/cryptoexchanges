@@ -3,7 +3,7 @@ import Exchange from '../../../src/exchanges/base/Exchange';
 describe('Exchange', () => {
   describe('params', () => {
     class MyExchange extends Exchange {
-      static api = {
+      static API = {
         public: { get: ['url/one'] },
       };
 
@@ -32,7 +32,7 @@ describe('Exchange', () => {
   describe('api METHODS', () => {
     test('should set api METHODS', () => {
       class MyExchange extends Exchange {
-        static api = {
+        static API = {
           public: { get: ['url/one'] },
           private: { get: ['url/one'] },
           kitchen: { get: ['url/one'] },
@@ -62,7 +62,7 @@ describe('Exchange', () => {
 
     test.only('should call signedRequest when private', () => {
       class MyExchange extends Exchange {
-        static api = {
+        static API = {
           public: { get: ['url/one'] },
           private: { get: ['url/one'] },
           kitchen: { get: ['url/one'] },
@@ -95,7 +95,7 @@ describe('Exchange', () => {
 
     test('should call request when not private', () => {
       class MyExchange extends Exchange {
-        static api = {
+        static API = {
           public: { get: ['url/one'] },
           private: { get: ['url/one'] },
           kitchen: { get: ['url/one'] },

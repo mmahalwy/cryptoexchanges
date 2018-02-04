@@ -3,7 +3,7 @@ import get from 'lodash/get';
 import sum from 'lodash/sum';
 import qs from 'qs';
 
-import Exchange from '../base/Exchange';
+import BaseExchange from '../base/BaseExchange';
 import ExchangeError from '../base/errors/ExchangeError';
 
 import { milliseconds } from '../../utils/time';
@@ -17,19 +17,10 @@ import {
   ORDER_TYPE,
   TIME_IN_FORCE,
 } from './constants';
-import {
-  parseTicker,
-  parseTickers,
-  parseOHLCV,
-  parseOrder,
-  parseOrders,
-  parseMarkets,
-  parseTrades,
-  currencyId,
-} from './parsers';
-import { parseBalance, parseOrderBook } from '../base/parsers';
+import BinanceParser from './BinanceParser';
 
-class Binance extends Exchange {
+class Binance extends BaseExchange {
+  static Parser = BinanceParser;
   static REQUIRED_CREDENTIALS = REQUIRED_CREDENTIALS;
   static URLS = URLS;
   static FEES = FEES;
@@ -96,7 +87,7 @@ class Binance extends Exchange {
 
     const markets = response.symbols;
 
-    return parseMarkets(markets, this.constructor.FEES);
+    return this.parsers.parseMarkets(markets);
   }
 
   calculateFee(symbol, type, side, amount, price, takerOrMaker = TAKER) {
@@ -125,7 +116,7 @@ class Binance extends Exchange {
 
     const response = await this.api.private.get.account(params);
     const result = {
-      info: response,
+      ...this.infoField(response),
     };
     const { balances } = response;
 
@@ -141,7 +132,7 @@ class Binance extends Exchange {
       result[currency] = account;
     });
 
-    return parseBalance(balances, this.orders, result);
+    return this.parsers.parseBalance(balances, this.orders, result);
   }
 
   async fetchOrderBook(symbol, params = {}) {
@@ -154,7 +145,7 @@ class Binance extends Exchange {
       ...params,
     });
 
-    return parseOrderBook(orderbook);
+    return this.parsers.parseOrderBook(orderbook);
   }
 
   async fetchTicker(symbol, params = {}) {
@@ -166,24 +157,22 @@ class Binance extends Exchange {
       ...params,
     });
 
-    return parseTicker(response, market, this.marketsById);
+    return this.parsers.parseTicker(response, market, this.marketsById);
   }
 
   async fetchBidAsks(symbols, params = {}) {
     await this.loadMarkets();
     const rawTickers = await this.api.public.get.tickerBookTicker(params);
 
-    return parseTickers(rawTickers, symbols);
+    return this.parsers.parseTickers(rawTickers, symbols);
   }
 
   async fetchTickers(symbols, params = {}) {
     await this.loadMarkets();
     const rawTickers = await this.api.public.get.ticker24Hr(params);
 
-    return parseTickers(rawTickers, symbols);
+    return this.parsers.parseTickers(rawTickers, symbols);
   }
-
-  parseOHLCV = parseOHLCV;
 
   async fetchOHLCV(symbol, timeframe = '1m', since, limit, params = {}) {
     await this.loadMarkets();
@@ -205,7 +194,7 @@ class Binance extends Exchange {
       ...params,
     });
 
-    return this.parseOHLCVs(response, market, timeframe, since, limit);
+    return this.parsers.parseOHLCVs(response, market, timeframe, since, limit);
   }
 
   async fetchTrades(symbol, since, limit, params = {}) {
@@ -231,7 +220,7 @@ class Binance extends Exchange {
       ...params,
     });
 
-    return parseTrades(response, market, since, limit);
+    return this.parsers.parseTrades(response, market, since, limit);
   }
 
   async createOrder(symbol, type, side, amount, price, params = {}) {
@@ -256,7 +245,7 @@ class Binance extends Exchange {
       ...params,
     });
 
-    return parseOrder(response, this.marketsById);
+    return this.parsers.parseOrder(response, this.marketsById);
   }
 
   async fetchOrder(id, symbol, params = {}) {
@@ -273,7 +262,7 @@ class Binance extends Exchange {
       params,
     });
 
-    return parseOrder(response, market);
+    return this.parsers.parseOrder(response, market);
   }
 
   async fetchOrders(symbol, since, limit, params = {}) {
@@ -297,7 +286,7 @@ class Binance extends Exchange {
       ...params,
     });
 
-    return parseOrders(response, market, since, limit);
+    return this.parsers.parseOrders(response, market, since, limit);
   }
 
   async fetchOpenOrders(symbol, since, limit, params = {}) {
@@ -317,7 +306,7 @@ class Binance extends Exchange {
 
     const response = await this.api.private.get.openOrders(this.extend(request, params));
 
-    return parseOrders(response, market, since, limit);
+    return this.parsers.parseOrders(response, market, since, limit);
   }
 
   async fetchMyTrades(symbol, since, limit, params = {}) {
@@ -341,7 +330,7 @@ class Binance extends Exchange {
       ...params,
     });
 
-    return parseTrades(response, market, since, limit);
+    return this.parsers.parseTrades(response, market, since, limit);
   }
 
   async withdraw(currency, amount, address, tag, params = {}) {
@@ -363,14 +352,14 @@ class Binance extends Exchange {
     });
 
     return {
-      info: response,
+      ...this.infoField(response),
       id: get(response, 'id'),
     };
   }
 
   async fetchDepositAddress(currency, params = {}) {
     const response = await this.api.wapi.get.depositAddress({
-      asset: currencyId(currency),
+      asset: this.parsers.currencyId(currency),
       ...params,
     });
 
@@ -383,7 +372,7 @@ class Binance extends Exchange {
         address,
         tag,
         status: 'ok',
-        info: response,
+        ...this.infoField(response),
       };
     }
 
