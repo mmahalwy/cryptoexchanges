@@ -98,7 +98,7 @@ export const MARKET_STATUS = {
   TRADING: 'TRADING',
 };
 
-export const ORDER_STATUS = {
+export const ORDER_STATUSES = {
   NEW: 'NEW',
   PARTIALLY_FILLED: 'PARTIALLY_FILLED',
   FILLED: 'FILLED',

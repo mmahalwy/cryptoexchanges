@@ -1,12 +1,13 @@
 import keyBy from 'lodash/keyBy';
 import get from 'lodash/get';
 import toInteger from 'lodash/toInteger';
+import sum from 'lodash/sum';
 
 import ExchangeError from '../base/errors/ExchangeError';
 import BaseParser from '../base/BaseParser';
 import { iso8601, milliseconds } from '../../utils/time';
 import { precisionFromString } from '../../utils/number';
-import { NULL_ID, ORDER_TYPE, MARKET_STATUS, ORDER_STATUS, FEES } from './constants';
+import { NULL_ID, ORDER_TYPE, MARKET_STATUS, ORDER_STATUSES, FEES } from './constants';
 
 class BinanceParser extends BaseParser {
   parseTicker = (ticker, market = undefined, marketsById) => {
@@ -88,10 +89,10 @@ class BinanceParser extends BaseParser {
   ];
 
   parseOrderStatus = (status) => {
-    if (status === ORDER_STATUS.NEW) return 'open';
-    if (status === ORDER_STATUS.PARTIALLY_FILLED) return 'open';
-    if (status === ORDER_STATUS.FILLED) return 'closed';
-    if (status === ORDER_STATUS.CANCELED) return 'canceled';
+    if (status === ORDER_STATUSES.NEW) return 'open';
+    if (status === ORDER_STATUSES.PARTIALLY_FILLED) return 'open';
+    if (status === ORDER_STATUSES.FILLED) return 'closed';
+    if (status === ORDER_STATUSES.CANCELED) return 'canceled';
 
     return status.toLowerCase();
   };
@@ -293,6 +294,28 @@ class BinanceParser extends BaseParser {
       fee,
     };
   };
+
+  parserBalances(response) {
+    const result = {
+      ...this.infoField(response),
+    };
+
+    const { balances } = response;
+
+    balances.forEach((balance) => {
+      const { asset } = balance;
+      const currency = this.commonCurrencyCode(asset);
+      const account = {
+        free: parseFloat(balance.free),
+        used: parseFloat(balance.locked),
+        total: 0.0,
+      };
+      account.total = sum([account.free, account.used]);
+      result[currency] = account;
+    });
+
+    return this.parser.parseBalance(balances, this.orders, result);
+  }
 }
 
 export default BinanceParser;

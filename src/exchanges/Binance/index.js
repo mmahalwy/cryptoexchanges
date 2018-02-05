@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import get from 'lodash/get';
-import sum from 'lodash/sum';
 import qs from 'qs';
 
 import BaseExchange from '../base/BaseExchange';
@@ -27,14 +26,6 @@ class Binance extends BaseExchange {
   static API = API;
   static SIGNED_APIS = SIGNED_APIS;
 
-  getHeaders(signed) {
-    if (!signed) return {};
-
-    return {
-      'X-MBX-APIKEY': this.apiKey,
-    };
-  }
-
   getSignature({ params, timestamp }) {
     const strForSign = qs.stringify({
       ...params,
@@ -48,20 +39,20 @@ class Binance extends BaseExchange {
     return signatureResult;
   }
 
-  sign({
-    path, params, timestamp, signed,
-  }) {
+  sign({ path, params, nonce }) {
     return {
       params: {
         ...params,
-        timestamp,
+        timestamp: nonce,
         signature: this.getSignature({
           path,
           params,
-          timestamp,
+          timestamp: nonce,
         }),
       },
-      headers: this.getHeaders(signed),
+      headers: {
+        'X-MBX-APIKEY': this.apiKey,
+      },
     };
   }
 
@@ -87,7 +78,7 @@ class Binance extends BaseExchange {
 
     const markets = response.symbols;
 
-    return this.parsers.parseMarkets(markets);
+    return this.parser.parseMarkets(markets);
   }
 
   calculateFee(symbol, type, side, amount, price, takerOrMaker = TAKER) {
@@ -114,25 +105,8 @@ class Binance extends BaseExchange {
   async fetchBalance(params = {}) {
     await this.loadMarkets();
 
-    const response = await this.api.private.get.account(params);
-    const result = {
-      ...this.infoField(response),
-    };
-    const { balances } = response;
-
-    balances.forEach((balance) => {
-      const { asset } = balance;
-      const currency = this.commonCurrencyCode(asset);
-      const account = {
-        free: parseFloat(balance.free),
-        used: parseFloat(balance.locked),
-        total: 0.0,
-      };
-      account.total = sum([account.free, account.used]);
-      result[currency] = account;
-    });
-
-    return this.parsers.parseBalance(balances, this.orders, result);
+    const response = await this.api.private.get.account({ params });
+    return this.parser.parserBalances(response);
   }
 
   async fetchOrderBook(symbol, params = {}) {
@@ -145,7 +119,7 @@ class Binance extends BaseExchange {
       ...params,
     });
 
-    return this.parsers.parseOrderBook(orderbook);
+    return this.parser.parseOrderBook(orderbook);
   }
 
   async fetchTicker(symbol, params = {}) {
@@ -154,98 +128,100 @@ class Binance extends BaseExchange {
     const market = this.market(symbol);
     const response = await this.api.public.get.ticker24Hr({
       symbol: market.id,
-      ...params,
+      params,
     });
 
-    return this.parsers.parseTicker(response, market, this.marketsById);
+    return this.parser.parseTicker(response, market, this.marketsById);
   }
 
   async fetchBidAsks(symbols, params = {}) {
     await this.loadMarkets();
-    const rawTickers = await this.api.public.get.tickerBookTicker(params);
+    const rawTickers = await this.api.public.get.tickerBookTicker({ params });
 
-    return this.parsers.parseTickers(rawTickers, symbols);
+    return this.parser.parseTickers(rawTickers, symbols);
   }
 
   async fetchTickers(symbols, params = {}) {
     await this.loadMarkets();
-    const rawTickers = await this.api.public.get.ticker24Hr(params);
+    const rawTickers = await this.api.public.get.ticker24Hr({ params });
 
-    return this.parsers.parseTickers(rawTickers, symbols);
+    return this.parser.parseTickers(rawTickers, symbols);
   }
 
   async fetchOHLCV(symbol, timeframe = '1m', since, limit, params = {}) {
     await this.loadMarkets();
 
     const market = this.market(symbol);
-    const request = {
-      symbol: market.id,
+    const setupParams = {
       interval: this.timeframes[timeframe],
     };
 
-    request.limit = limit || 500; // default == max == 500
+    setupParams.limit = limit || 500; // default == max == 500
 
     if (since) {
-      request.startTime = since;
+      setupParams.startTime = since;
     }
 
     const response = await this.api.public.get.klines({
-      ...request,
-      ...params,
+      symbol: market.id,
+      params: { ...setupParams, ...params },
     });
 
-    return this.parsers.parseOHLCVs(response, market, timeframe, since, limit);
+    return this.parser.parseOHLCVs(response, market, timeframe, since, limit);
   }
 
   async fetchTrades(symbol, since, limit, params = {}) {
     await this.loadMarkets();
     const market = this.market(symbol);
-    const request = {
-      symbol: market.id,
-    };
+    const setupParams = {};
+
     if (since) {
-      request.startTime = since;
-      request.endTime = since + 3600000;
+      setupParams.startTime = since;
+      setupParams.endTime = since + 3600000;
     }
 
     if (limit) {
-      request.limit = limit;
+      setupParams.limit = limit;
     }
     // 'fromId': 123,    // ID to get aggregate trades from INCLUSIVE.
     // 'startTime': 456, // Timestamp in ms to get aggregate trades from INCLUSIVE.
     // 'endTime': 789,   // Timestamp in ms to get aggregate trades until INCLUSIVE.
     // 'limit': 500,     // default = maximum = 500
     const response = await this.api.public.get.aggTrades({
-      ...request,
-      ...params,
+      symbol: market.id,
+      params: {
+        ...setupParams,
+        ...params,
+      },
     });
 
-    return this.parsers.parseTrades(response, market, since, limit);
+    return this.parser.parseTrades(response, market, since, limit);
   }
 
-  async createOrder(symbol, type, side, amount, price, params = {}) {
+  async createOrder(symbol, type, side, amount, price, data = {}) {
     await this.loadMarkets();
     const market = this.market(symbol);
-    let order = {
+
+    const order = {
       symbol: market.id,
       quantity: this.amountToString(symbol, amount),
       type: type.toUpperCase(),
       side: side.toUpperCase(),
     };
+
     if (type === ORDER_TYPE.LIMIT) {
-      order = {
-        ...order,
-        price: this.priceToPrecision(symbol, price),
-        timeInForce: TIME_IN_FORCE.GTC,
-      };
+      order.price = this.priceToPrecision(symbol, price);
+      order.timeInForce = TIME_IN_FORCE.GTC;
     }
 
     const response = await this.api.private.post.order({
-      ...order,
-      ...params,
+      data: {
+        ...order,
+        ...data,
+      },
     });
 
-    return this.parsers.parseOrder(response, this.marketsById);
+    return this.parser.parseOrder(response, this.marketsById);
   }
 
   async fetchOrder(id, symbol, params = {}) {
@@ -262,7 +238,7 @@ class Binance extends BaseExchange {
       params,
     });
 
-    return this.parsers.parseOrder(response, market);
+    return this.parser.parseOrder(response, market);
   }
 
   async fetchOrders(symbol, since, limit, params = {}) {
@@ -273,20 +249,16 @@ class Binance extends BaseExchange {
     await this.loadMarkets();
 
     const market = this.market(symbol);
-    const request = {
-      symbol: market.id,
-    };
-
-    if (limit) {
-      request.limit = limit;
-    }
 
     const response = await this.api.private.get.allOrders({
-      ...request,
-      ...params,
+      symbol: market.id,
+      params: {
+        limit,
+        ...params,
+      },
     });
 
-    return this.parsers.parseOrders(response, market, since, limit);
+    return this.parser.parseOrders(response, market, since, limit);
   }
 
   async fetchOpenOrders(symbol, since, limit, params = {}) {
@@ -297,16 +269,16 @@ class Binance extends BaseExchange {
     await this.loadMarkets();
 
     let market;
-    const request = {};
+    const setupParams = {};
 
     if (symbol) {
       market = this.market(symbol);
-      request.symbol = market.id;
+      setupParams.symbol = market.id;
     }
 
-    const response = await this.api.private.get.openOrders(this.extend(request, params));
+    const response = await this.api.private.get.openOrders({ ...setupParams, params });
 
-    return this.parsers.parseOrders(response, market, since, limit);
+    return this.parser.parseOrders(response, market, since, limit);
   }
 
   async fetchMyTrades(symbol, since, limit, params = {}) {
@@ -317,23 +289,19 @@ class Binance extends BaseExchange {
     await this.loadMarkets();
 
     const market = this.market(symbol);
-    const request = {
-      symbol: market.id,
-    };
-
-    if (limit) {
-      request.limit = limit;
-    }
 
     const response = await this.api.private.get.myTrades({
-      ...request,
-      ...params,
+      symbol: market.id,
+      params: {
+        limit,
+        ...params,
+      },
     });
 
-    return this.parsers.parseTrades(response, market, since, limit);
+    return this.parser.parseTrades(response, market, since, limit);
   }
 
-  async withdraw(currency, amount, address, tag, params = {}) {
+  async withdraw(currency, amount, address, tag, data = {}) {
     const name = address.slice(0, 20);
     const request = {
       asset: this.currencyId(currency),
@@ -347,19 +315,21 @@ class Binance extends BaseExchange {
     }
 
     const response = await this.api.wapi.post.withdraw({
-      ...request,
-      ...params,
+      data: {
+        ...request,
+        ...data,
+      },
     });
 
     return {
-      ...this.infoField(response),
+      ...this.parser.infoField(response),
       id: get(response, 'id'),
     };
   }
 
   async fetchDepositAddress(currency, params = {}) {
     const response = await this.api.wapi.get.depositAddress({
-      asset: this.parsers.currencyId(currency),
+      asset: this.parser.currencyId(currency),
       ...params,
     });
 
@@ -372,7 +342,7 @@ class Binance extends BaseExchange {
         address,
         tag,
         status: 'ok',
-        ...this.infoField(response),
+        ...this.parser.infoField(response),
       };
     }
 

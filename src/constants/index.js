@@ -1,8 +1,30 @@
-export const ORDER_TYPES = {
-  LIMIT: 'limit',
+import mapValues from 'lodash/mapValues';
+import lowerCase from 'lodash/lowerCase';
+
+const makeLowerCaseVersion = (constants) => {
+  // eslint-disable-next-line no-param-reassign
+  constants.LOWER_CASE = mapValues(constants, lowerCase);
+
+  return constants;
 };
 
-export const ORDER_SIDES = {
+export const ORDER_TYPES = makeLowerCaseVersion({
+  LIMIT: 'LIMIT',
+});
+
+export const ORDER_SIDES = makeLowerCaseVersion({
   BUY: 'BUY',
   SELL: 'SELL',
-};
+});
+
+export const ORDER_STATUSES = makeLowerCaseVersion({
+  OPEN: 'OPEN',
+  DONE: 'DONE',
+  ALL: 'ALL',
+});
+
+export const BALANCE_TYPES = makeLowerCaseVersion({
+  FREE: 'FREE',
+  USER: 'USER',
+  TOTAL: 'TOTAL',
+});

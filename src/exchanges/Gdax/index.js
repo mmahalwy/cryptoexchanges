@@ -1,20 +1,16 @@
-import toInteger from 'lodash/toInteger';
+import crypto from 'crypto';
 import sum from 'lodash/sum';
+import get from 'lodash/get';
+import upperCase from 'lodash/upperCase';
 
 import BaseExchange from '../base/BaseExchange';
-import {
-  REQUIRED_CREDENTIALS,
-  URLS,
-  FEES,
-  API,
-  SIGNED_APIS,
-  BASE_ASSETS,
-  NON_BTC_TAKER,
-  MARKET_STATUS,
-} from './constants';
+import NotSupported from '../base/errors/NotSupported';
+import ExchangeError from '../base/errors/ExchangeError';
+import { ORDER_TYPES, ORDER_STATUSES } from '../../constants';
+import { REQUIRED_CREDENTIALS, URLS, FEES, API, SIGNED_APIS, TIMEFRAMES } from './constants';
 import GdaxParser from './GdaxParser';
-import { precisionFromString } from '../../utils/number';
-import { iso8601, parse8601, ymdhms } from '../../utils/time';
+
+import { parse8601, ymdhms } from '../../utils/time';
 
 class Gdax extends BaseExchange {
   static Parser = GdaxParser;
@@ -24,130 +20,77 @@ class Gdax extends BaseExchange {
   static API = API;
   static SIGNED_APIS = SIGNED_APIS;
 
+  getSignature({
+    nonce, method, path, data,
+  }) {
+    const strForSign = nonce + upperCase(method) + path + JSON.stringify(data);
+    const key = Buffer.from(this.apiSecret).toString('base64');
+
+    const signatureResult = crypto
+      .createHmac('sha256', key)
+      .update(strForSign)
+      .digest('base64');
+
+    return signatureResult;
+  }
+
+  sign(payload) {
+    const { nonce } = payload;
+
+    return {
+      headers: {
+        'CB-ACCESS-KEY': this.apiKey,
+        'CB-ACCESS-SIGN': this.getSignature(payload),
+        'CB-ACCESS-TIMESTAMP': nonce,
+        'CB-ACCESS-PASSPHRASE': this.password,
+      },
+    };
+  }
+
   async fetchMarkets() {
     const markets = await this.api.public.get.products();
 
-    const result = [];
-
-    markets.forEach((market) => {
-      const { id } = market;
-      const base = market.base_currency;
-      const quote = market.quote_currency;
-      const symbol = `${base}/${quote}`;
-      const priceLimits = {
-        min: toInteger(market.quote_increment),
-        max: undefined,
-      };
-      const precision = {
-        amount: 8,
-        price: precisionFromString(market.quote_increment),
-      };
-
-      let { taker } = this.constructor.FEES.trading;
-
-      if (base === BASE_ASSETS.ETH || base === BASE_ASSETS.LTC) {
-        taker = NON_BTC_TAKER;
-      }
-
-      const active = market.status === MARKET_STATUS.ONLINE;
-
-      result.push({
-        ...this.constructor.FEES.trading,
-        id,
-        symbol,
-        base,
-        quote,
-        precision,
-        limits: {
-          amount: {
-            min: market.base_min_size && parseFloat(market.base_min_size),
-            max: market.base_max_size && parseFloat(market.base_max_size),
-          },
-          price: priceLimits,
-          cost: {
-            min: market.min_market_funds && parseFloat(market.min_market_funds),
-            max: market.max_market_funds && parseFloat(market.max_market_funds),
-          },
-        },
-        taker,
-        active,
-        ...this.parser.infoField(market),
-      });
-    });
-
-    return result;
+    return this.parser.parseMarkets(markets);
   }
 
   async fetchBalance() {
     await this.loadMarkets();
 
     const balances = await this.api.private.get.accounts();
-    const result = { ...this.parser.infoField(balances) };
 
-    balances.forEach((balance) => {
-      const { currency } = balance;
-      const account = {
-        free: toInteger(balance.available),
-        used: toInteger(balance.hold),
-        total: toInteger(balance.balance),
-      };
-
-      result[currency] = account;
-    });
-
-    return this.parsers.parseBalance(result);
+    return this.parser.parseBalances(balances);
   }
 
-  async fetchOrderBook(symbol, params = {}) {
+  async fetchOrderBook({ symbol, params = {} } = {}) {
     await this.loadMarkets();
+
     const orderbook = await this.api.public.get.productsIdBook({
       id: this.marketId(symbol),
-      level: 2, // 1 best bidask, 2 aggregated, 3 full
-      ...params,
+      params: {
+        level: 2, // 1 best bidask, 2 aggregated, 3 full
+        ...params,
+      },
     });
 
-    return this.parsers.parseOrderBook(orderbook);
+    return this.parser.parseOrderBook(orderbook);
   }
 
-  async fetchTicker(symbol, params = {}) {
+  async fetchTicker({ symbol, params = {} } = {}) {
     await this.loadMarkets();
 
     const market = this.market(symbol);
-    const request = this.extend(
-      {
-        id: market.id,
-      },
+
+    const ticker = await this.api.public.get.productsIdTicker({
+      id: market.id,
       params,
-    );
+    });
 
-    const ticker = await this.api.public.get.productsIdTicker(request);
-    const timestamp = parse8601(ticker.time);
-    const bid = ticker.bid ? toInteger(ticker.bid) : null;
-    const ask = ticker.ask ? toInteger(ticker.ask) : null;
-
-    return {
-      symbol,
-      timestamp,
-      datetime: iso8601(timestamp),
-      high: undefined,
-      low: undefined,
-      bid,
-      ask,
-      vwap: undefined,
-      open: undefined,
-      close: undefined,
-      first: undefined,
-      last: toInteger(ticker.price),
-      change: undefined,
-      percentage: undefined,
-      average: undefined,
-      baseVolume: toInteger(ticker.volume),
-      quoteVolume: undefined,
-      ...this.parser.infoField(ticker),
-    };
+    return this.parser.parseTicker(ticker, symbol);
   }
 
-  async fetchMyTrades(symbol, since, limit, params = {}) {
+  async fetchMyTrades({
+    symbol, since, limit, params = {},
+  } = {}) {
     await this.loadMarkets();
 
     let market;
@@ -158,50 +101,59 @@ class Gdax extends BaseExchange {
       request.product_id = market.id;
     }
 
-    if (limit) {
-      request.limit = limit;
-    }
-
     const response = await this.api.private.get.fills({
       ...request,
-      ...params,
+      params: {
+        limit,
+        ...params,
+      },
     });
 
-    return this.parsers.parseTrades(response, market, since, limit, this.marketsById);
+    return this.parser.parseTrades(response, market, since, limit, this.marketsById);
   }
 
-  async fetchTrades(symbol, since, limit, params = {}) {
+  async fetchTrades({
+    symbol, since, limit, params = {},
+  } = {}) {
     await this.loadMarkets();
 
     const market = this.market(symbol);
     const response = await this.api.public.get.productsIdTrades({
       id: market.id, // fixes issue #2
-      ...params,
+      params,
     });
 
-    return this.parsers.parseTrades(response, market, since, limit, this.marketsById);
+    return this.parser.parseTrades(response, market, since, limit, this.marketsById);
   }
 
-  async fetchOHLCV(symbol, timeframe = '1m', since, limit, params = {}) {
+  async fetchOHLCV({
+    symbol, timeframe = '1m', since, limit, params = {},
+  } = {}) {
     await this.loadMarkets();
     const market = this.market(symbol);
-    const granularity = this.timeframes[timeframe];
-    const request = {
-      id: market.id,
+    const granularity = TIMEFRAMES[timeframe];
+    const setupParams = {
       granularity,
+      limit,
     };
-    if (typeof since !== 'undefined') {
-      request.start = ymdhms(since);
-      if (typeof limit === 'undefined') {
+
+    if (since) {
+      setupParams.start = ymdhms(since);
+
+      if (!limit) {
         // https://docs.gdax.com/#get-historic-rates
-        limit = 350; // max = 350
+        setupParams.limit = 350; // max = 350
       }
 
-      request.end = ymdhms(sum([limit * granularity * 1000, since]));
+      setupParams.end = ymdhms(sum([limit * granularity * 1000, since]));
     }
-    const response = await this.api.public.get.productsIdCandles({ ...request, ...params });
 
-    return this.parsers.parseOHLCVs(response, market, timeframe, since, limit);
+    const response = await this.api.public.get.productsIdCandles({
+      id: market.id,
+      params: { ...setupParams, granularity, ...params },
+    });
+
+    return this.parser.parseOHLCVs(response, market, timeframe, since, limit);
   }
 
   async fetchTime() {
@@ -210,29 +162,189 @@ class Gdax extends BaseExchange {
     return parse8601(response.iso);
   }
 
-  async fetchOrder(id, symbol, params = {}) {
+  async fetchOrder({ id, params = {} } = {}) {
     await this.loadMarkets();
 
     const response = await this.api.private.get.ordersId({
       id,
-      ...params,
+      params,
     });
 
-    return this.parsers.parseOrder(response);
+    return this.parser.parseOrder(response);
   }
 
-  async fetchOrders(symbol, since, limit, params = {}) {
+  async fetchOrders({
+    symbol, since, limit, params = {},
+  } = {}) {
     await this.loadMarkets();
-    const request = {
-      status: 'all',
-    };
+
+    const request = {};
+
     let market;
+
+    if (symbol) {
+      market = this.market(symbol);
+
+      request.product_id = market.id;
+    }
+
+    const response = await this.api.private.get.orders({
+      ...request,
+      params: { ...params, status: ORDER_STATUSES.LOWER_CASE.ALL },
+    });
+
+    return this.parser.parseOrders(response, market, since, limit);
+  }
+
+  async fetchOpenOrders({
+    symbol,
+    since,
+    limit,
+    params = {},
+  } = {}) {
+    await this.loadMarkets();
+
+    const request = {};
+    let market;
+
     if (symbol) {
       market = this.market(symbol);
       request.product_id = market.id;
     }
-    const response = await this.api.private.get.orders({ ...request, ...params });
-    return this.parsers.parseOrders(response, market, since, limit);
+
+    const response = await this.api.private.get.orders({ ...request, params });
+
+    return this.parser.parseOrders(response, market, since, limit);
+  }
+
+  async fetchClosedOrders({
+    symbol = undefined,
+    since = undefined,
+    limit = undefined,
+    params = {},
+  } = {}) {
+    await this.loadMarkets();
+
+    const request = {};
+
+    let market;
+
+    if (symbol) {
+      market = this.market(symbol);
+      request.product_id = market.id;
+    }
+
+    const response = await this.api.private.get.orders({
+      ...request,
+      params: { ...params, status: ORDER_STATUSES.LOWER_CASE.DONE },
+    });
+
+    return this.parser.parseOrders(response, market, since, limit);
+  }
+
+  async createOrder({
+    market, type, side, amount, price, params = {},
+  } = {}) {
+    await this.loadMarkets();
+    // let oid = this.nonce ().toString ();
+    const order = {
+      product_id: this.marketId(market),
+      side,
+      size: amount,
+      type,
+      ...params,
+    };
+
+    if (type === ORDER_TYPES.LOWER_CASE.LIMIT) {
+      order.price = price;
+    }
+
+    const response = await this.api.private.post.orders({ data: order });
+
+    return {
+      info: response,
+      id: response.id,
+    };
+  }
+
+  async cancelOrder({ id }) {
+    await this.loadMarkets();
+
+    const response = await this.api.private.delete.ordersId({ id });
+
+    return response;
+  }
+
+  async getPaymentMethods() {
+    const response = await this.api.private.get.paymentMethods();
+
+    return response;
+  }
+
+  async deposit({ currency, amount, params = {} } = {}) {
+    await this.loadMarkets();
+
+    const request = {
+      currency,
+      amount,
+    };
+    let method = 'api.private.post.deposits';
+
+    if ('payment_method_id' in params) {
+      // deposit from a payment_method, like a bank account
+      method += 'PaymentMethod';
+    } else if ('coinbase_account_id' in params) {
+      // deposit into GDAX account from a Coinbase account
+      method += 'CoinbaseAccount';
+    } else {
+      // deposit methodotherwise we did not receive a supported deposit location
+      // relevant docs link for the Googlers
+      // https://docs.gdax.com/#deposits
+      throw new NotSupported('Gdax deposit() requires one of `coinbase_account_id` or `payment_method_id` extra params');
+    }
+
+    const methodFunction = get(this, method);
+    const response = await methodFunction({ ...request, ...params });
+
+    if (!response) throw new ExchangeError(`Gdax deposit() error: ${JSON.stringify(response)}`);
+
+    return {
+      info: response,
+      id: response.id,
+    };
+  }
+
+  async withdraw({
+    currency, amount, address, params = {},
+  } = {}) {
+    await this.loadMarkets();
+
+    const data = {
+      currency,
+      amount,
+    };
+    let method = 'api.private.post.withdrawals';
+
+    if ('payment_method_id' in params) {
+      method += 'PaymentMethod';
+    } else if ('coinbase_account_id' in params) {
+      method += 'CoinbaseAccount';
+    } else {
+      method += 'Crypto';
+      data.crypto_address = address;
+    }
+
+    const methodFunction = get(this, method);
+    const response = await methodFunction({ data, params });
+
+    if (!response) {
+      throw new ExchangeError(`Gdax withdraw() error: ${JSON.stringify(response)}`);
+    }
+
+    return {
+      info: response,
+      id: response.id,
+    };
   }
 }
 

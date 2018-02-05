@@ -1,6 +1,7 @@
 export const REQUIRED_CREDENTIALS = ['apiKey', 'apiSecret', 'password'];
 export const URLS = {
-  logo: 'https://user-images.githubusercontent.com/1294454/27766527-b1be41c6-5edb-11e7-95f6-5b496c469e2c.jpg',
+  logo:
+    'https://user-images.githubusercontent.com/1294454/27766527-b1be41c6-5edb-11e7-95f6-5b496c469e2c.jpg',
   api: {
     public: 'https://api.gdax.com',
     private: 'https://api.gdax.com',
@@ -60,6 +61,20 @@ export const API = {
   },
 };
 export const SIGNED_APIS = ['private'];
+export const TIMEFRAMES = {
+  '1m': 60,
+  '5m': 300,
+  '15m': 900,
+  '30m': 1800,
+  '1h': 3600,
+  '2h': 7200,
+  '4h': 14400,
+  '12h': 43200,
+  '1d': 86400,
+  '1w': 604800,
+  '1M': 2592000,
+  '1y': 31536000,
+};
 
 export const METHODS = [
   'fetchMarkets',

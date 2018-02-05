@@ -10,13 +10,7 @@ const markets = [
     baseAssetPrecision: 8,
     quoteAsset: 'BTC',
     quotePrecision: 8,
-    orderTypes: [
-      'LIMIT',
-      'LIMIT_MAKER',
-      'MARKET',
-      'STOP_LOSS_LIMIT',
-      'TAKE_PROFIT_LIMIT',
-    ],
+    orderTypes: ['LIMIT', 'LIMIT_MAKER', 'MARKET', 'STOP_LOSS_LIMIT', 'TAKE_PROFIT_LIMIT'],
     icebergAllowed: true,
     filters: [
       {
@@ -119,18 +113,6 @@ describe('Binance', () => {
     });
   });
 
-  describe('#getHeaders', () => {
-    test('should return headers when signed', () => {
-      expect(binance.getHeaders(true)).toEqual({
-        'X-MBX-APIKEY': binance.apiKey,
-      });
-    });
-
-    test('should return headers not when signed', () => {
-      expect(binance.getHeaders()).toEqual({});
-    });
-  });
-
   describe('#getSignature', () => {
     test('should return signature', () => {
       const path = '/path';
@@ -154,22 +136,23 @@ describe('Binance', () => {
         options,
         path,
         params,
-        timestamp,
+        nonce: timestamp,
       })).toEqual({
         params: {
           ...params,
           timestamp,
           signature: binance.getSignature(path, params, timestamp),
         },
-        headers: {},
+        headers: {
+          'X-MBX-APIKEY': binance.apiKey,
+        },
       });
     });
   });
 
   describe('#loadTimeDifference', () => {
     test('should time difference', async () => {
-      binance.api.public.get.time = jest.fn(() =>
-        Promise.resolve({ serverTime: 123 }));
+      binance.api.public.get.time = jest.fn(() => Promise.resolve({ serverTime: 123 }));
 
       const timeDiff = await binance.loadTimeDifference();
 
@@ -183,8 +166,7 @@ describe('Binance', () => {
 
       binance.adjustForTimeDifference = true;
       binance.loadTimeDifference = loadTimeDifferenceStub;
-      binance.api.public.get.exchangeInfo = jest.fn(() =>
-        Promise.resolve({ symbols: markets }));
+      binance.api.public.get.exchangeInfo = jest.fn(() => Promise.resolve({ symbols: markets }));
 
       await binance.fetchMarkets();
 
@@ -192,8 +174,7 @@ describe('Binance', () => {
     });
 
     test('should return markets with correct fields', async () => {
-      binance.api.public.get.exchangeInfo = jest.fn(() =>
-        Promise.resolve({ symbols: markets }));
+      binance.api.public.get.exchangeInfo = jest.fn(() => Promise.resolve({ symbols: markets }));
 
       const response = await binance.fetchMarkets();
       const firstMarket = response[0];
@@ -206,8 +187,7 @@ describe('Binance', () => {
 
   describe('#fetchOrderBook', () => {
     test('should return order book', async () => {
-      binance.api.public.get.exchangeInfo = jest.fn(() =>
-        Promise.resolve({ symbols: markets }));
+      binance.api.public.get.exchangeInfo = jest.fn(() => Promise.resolve({ symbols: markets }));
       binance.api.public.get.depth = jest.fn(() => Promise.resolve(orderBook));
 
       const response = await binance.fetchOrderBook('ETH/BTC');
@@ -221,10 +201,8 @@ describe('Binance', () => {
 
   describe('#fetchTicker', () => {
     test('should return order book', async () => {
-      binance.api.public.get.exchangeInfo = jest.fn(() =>
-        Promise.resolve({ symbols: markets }));
-      binance.api.public.get.ticker24Hr = jest.fn(() =>
-        Promise.resolve(ticker));
+      binance.api.public.get.exchangeInfo = jest.fn(() => Promise.resolve({ symbols: markets }));
+      binance.api.public.get.ticker24Hr = jest.fn(() => Promise.resolve(ticker));
 
       const response = await binance.fetchTicker('ETH/BTC');
 

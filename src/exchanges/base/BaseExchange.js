@@ -1,4 +1,5 @@
 import axios from 'axios';
+import stringinject from 'stringinject';
 import forEach from 'lodash/forEach';
 import groupBy from 'lodash/groupBy';
 import sortBy from 'lodash/sortBy';
@@ -15,14 +16,14 @@ const EMPTY_OBJECT = {};
 
 class Exchange {
   constructor({
-    apiKey, apiSecret, uid, password, includeInfo = false,
+    apiKey, apiSecret, uid, password, includeInfo = false, verbose = false,
   } = {}) {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
     this.uid = uid;
     this.password = password;
 
-    this.includeInfo = includeInfo;
+    this.verbose = verbose;
 
     this.validateRequiredConfig(apiKey, apiSecret, uid, password);
     this.validateParser();
@@ -31,7 +32,7 @@ class Exchange {
       timeout: this.timeout,
     });
 
-    this.parser = new this.constructor.Parser({ includeInfo });
+    this.parser = new this.constructor.Parser({ exchange: this, includeInfo });
 
     this.setApiMethods();
   }
@@ -49,15 +50,15 @@ class Exchange {
   markets = null;
   marketsById = null;
 
-  async rawRequest(method, endpoint, signed = false, params = {}) {
-    const path = endpoint;
+  async rawRequest(method, baseUrl, path, signed = false, requestConfig = {}) {
     const nonce = new Date().getTime();
 
     const options = {
+      baseURL: baseUrl,
       url: path,
       headers: {},
       method,
-      params,
+      ...requestConfig,
     };
 
     if (signed) {
@@ -65,35 +66,39 @@ class Exchange {
         options,
         this.sign({
           options,
-          path,
-          params,
           nonce,
-          signed,
+          ...requestConfig,
         }),
       );
     }
 
     try {
+      if (this.verbose) {
+        console.log(`Request: ${baseUrl}, Path: ${path}, Config: ${JSON.stringify(requestConfig)}`);
+      }
+
       const response = await this.client(options);
 
       return response.data;
     } catch (e) {
+      // TODO: handle error
       console.error(e);
 
       throw e;
     }
   }
 
-  request = (method, endpoint, params) => this.rawRequest(method, endpoint, false, params);
+  request = (method, baseUrl, path, requestConfig) =>
+    this.rawRequest(method, baseUrl, path, false, requestConfig);
 
-  signedRequest = (method, endpoint, params) => {
+  signedRequest = (method, baseUrl, path, requestConfig) => {
     const containsAllParams = this.constructor.REQUIRED_CREDENTIALS.every(param => this[param]);
 
     if (!containsAllParams) {
       throw new AuthenticationError(`Cannot sign request as ${this.constructor.REQUIRED_CREDENTIALS.join(', ')} required`);
     }
 
-    return this.rawRequest(method, endpoint, true, params);
+    return this.rawRequest(method, baseUrl, path, true, requestConfig);
   };
 
   commonCurrencyCode(currency) {
@@ -111,22 +116,24 @@ class Exchange {
     forEach(this.constructor.URLS.api, (baseUrl, name) => {
       this.api[name] = {};
 
-      forEach(this.constructor.API[name], (urlArray, method) => {
-        this.setApiMethodsFromArray(method, urlArray, name, baseUrl);
+      forEach(this.constructor.API[name], (pathsArray, method) => {
+        this.setApiMethodsFromArray(method, pathsArray, name, baseUrl);
       });
     });
   };
 
-  setApiMethodsFromArray = (method, urlArray, name, baseUrl) => {
+  setApiMethodsFromArray = (method, pathsArray, name, baseUrl) => {
     const isPrivate = this.constructor.SIGNED_APIS.includes(name);
 
-    urlArray.forEach((url) => {
+    pathsArray.forEach((path) => {
       this.api[name][method] = this.api[name][method] || {};
 
-      this.api[name][method][camelCase(url)] = (params) => {
+      this.api[name][method][camelCase(path)] = (requestConfig) => {
         const requestMethod = isPrivate ? this.signedRequest : this.request;
+        // Handle paths that are `/order/{id}` to `/order/1`
+        const injectedPath = requestConfig ? stringinject(path, requestConfig) : path;
 
-        return requestMethod(method, `${baseUrl}${url}`, params);
+        return requestMethod(method, baseUrl, injectedPath, requestConfig);
       };
     });
   };
@@ -195,16 +202,20 @@ class Exchange {
     return this.markets;
   }
 
+  marketId(symbol) {
+    return this.market(symbol).id || symbol;
+  }
+
   market(symbol) {
     if (this.markets === EMPTY_OBJECT) {
-      return new ExchangeError(`${this.id} markets not loaded`);
+      return new ExchangeError(`${this.constructor.name} markets not loaded`);
     }
 
     if (isString(symbol) && this.markets[symbol]) {
       return this.markets[symbol];
     }
 
-    throw new ExchangeError(`${this.id} does not have market symbol ${symbol}`);
+    throw new ExchangeError(`${this.constructor.name} does not have market symbol ${symbol}`);
   }
 
   costToPrecision(symbol, cost) {
@@ -213,22 +224,6 @@ class Exchange {
 
   feeToPrecision(symbol, fee) {
     return parseFloat(fee).toFixed(this.markets[symbol].precision.price);
-  }
-
-  getCurrencyUsedOnOpenOrders(currency) {
-    return Object.values(this.orders)
-      .filter(order => order.status === 'open')
-      .reduce((total, order) => {
-        const { symbol } = order;
-        const market = this.markets[symbol];
-        const amount = order.remaining;
-        if (currency === market.base && order.side === 'sell') {
-          return total + amount;
-        } else if (currency === market.quote && order.side === 'buy') {
-          return total + (order.cost || order.price * amount);
-        }
-        return total;
-      }, 0);
   }
 
   // Validations

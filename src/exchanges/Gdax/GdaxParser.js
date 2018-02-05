@@ -2,25 +2,21 @@ import get from 'lodash/get';
 import toInteger from 'lodash/toInteger';
 
 import BaseParser from '../base/BaseParser';
-import { MAKER, TAKER, ORDER_TYPE } from './constants';
+import { MAKER, TAKER, ORDER_TYPE, BASE_ASSETS, NON_BTC_TAKER, MARKET_STATUS } from './constants';
 import { iso8601 as iso8601Fn, parse8601 } from '../../utils/time';
+import { precisionFromString } from '../../utils/number';
 
 class GdaxParser extends BaseParser {
   parseTrade = (trade, market, marketsById) => {
-    let timestamp;
-    if ('time' in trade) {
-      timestamp = parse8601(trade.time);
-    } else if ('created_at' in trade) {
-      timestamp = parse8601(trade.created_at);
-    }
-    let iso8601;
-
-    if (typeof timestamp !== 'undefined') {
-      iso8601 = iso8601Fn(timestamp);
-    }
-
+    const timestamp = trade.time ? parse8601(trade.time) : parse8601(trade.created_at);
+    const iso8601 = timestamp && iso8601Fn(timestamp);
     const side = trade.side === ORDER_TYPE.BUY ? ORDER_TYPE.SELL : ORDER_TYPE.BUY;
+    const feeCost = toInteger(get(trade, 'fill_fees', trade.fee));
+
+    let feeRate;
+    let feeCurrency;
     let symbol;
+    let type;
 
     if (!market) {
       if ('product_id' in trade) {
@@ -38,20 +34,15 @@ class GdaxParser extends BaseParser {
       symbol = market.symbol;
     }
 
-    let feeRate;
-    let feeCurrency;
-
     if (market) {
       feeCurrency = market.quote;
+
       if ('liquidity' in trade) {
         const rateType = trade.liquidity === 'T' ? TAKER : MAKER;
+
         feeRate = market[rateType];
       }
     }
-
-    let feeCost = toInteger(trade.fill_fees);
-
-    if (!feeCost) feeCost = toInteger(trade.fee);
 
     const fee = {
       cost: feeCost,
@@ -59,9 +50,9 @@ class GdaxParser extends BaseParser {
       rate: feeRate,
     };
 
-    let type;
     const id = get(trade, 'trade_id');
     const orderId = get(trade, 'order_id');
+
     return {
       id,
       order: orderId,
@@ -95,12 +86,12 @@ class GdaxParser extends BaseParser {
     let market = _market;
 
     if (!market) {
-      if (this.marketsById[order.product_id]) {
-        market = this.marketsById[order.product_id];
+      if (this.exchange.marketsById[order.product_id]) {
+        market = this.exchange.marketsById[order.product_id];
       }
     }
-
-    const symbol = market ? market.symbol : null;
+    
+    const symbol = market && market.symbol;
     const timestamp = parse8601(order.created_at);
     const status = this.parseOrderStatus(order.status);
     const price = toInteger(get(order, 'price'));
@@ -112,6 +103,7 @@ class GdaxParser extends BaseParser {
       currency: undefined,
       rate: undefined,
     };
+
     let remaining;
 
     if (amount) {
@@ -136,6 +128,104 @@ class GdaxParser extends BaseParser {
       remaining,
       fee,
     };
+  };
+
+  parseBalances(balances) {
+    const result = { ...this.infoField(balances) };
+
+    balances.forEach((balance) => {
+      const { currency } = balance;
+      const account = {
+        free: toInteger(balance.available),
+        used: toInteger(balance.hold),
+        total: toInteger(balance.balance),
+      };
+
+      result[currency] = account;
+    });
+
+    return this.parseBalance(result);
+  }
+
+  parseTicker(ticker, symbol) {
+    const timestamp = ticker.time && parse8601(ticker.time);
+    const datetime = timestamp && iso8601Fn(timestamp);
+    const bid = ticker.bid ? toInteger(ticker.bid) : null;
+    const ask = ticker.ask ? toInteger(ticker.ask) : null;
+
+    return {
+      symbol,
+      timestamp,
+      datetime,
+      high: undefined,
+      low: undefined,
+      bid,
+      ask,
+      vwap: undefined,
+      open: undefined,
+      close: undefined,
+      first: undefined,
+      last: toInteger(ticker.price),
+      change: undefined,
+      percentage: undefined,
+      average: undefined,
+      baseVolume: toInteger(ticker.volume),
+      quoteVolume: undefined,
+      ...this.infoField(ticker),
+    };
+  }
+
+  parseMarkets = (markets) => {
+    const result = [];
+    const { trading } = this.exchange.constructor.FEES;
+
+    markets.forEach((market) => {
+      const { id } = market;
+      const base = market.base_currency;
+      const quote = market.quote_currency;
+      const symbol = `${base}/${quote}`;
+      const priceLimits = {
+        min: toInteger(market.quote_increment),
+        max: undefined,
+      };
+      const precision = {
+        amount: 8,
+        price: precisionFromString(market.quote_increment),
+      };
+
+      let { taker } = trading;
+
+      if (base === BASE_ASSETS.ETH || base === BASE_ASSETS.LTC) {
+        taker = NON_BTC_TAKER;
+      }
+
+      const active = market.status === MARKET_STATUS.ONLINE;
+
+      result.push({
+        ...trading,
+        id,
+        symbol,
+        base,
+        quote,
+        precision,
+        limits: {
+          amount: {
+            min: market.base_min_size && parseFloat(market.base_min_size),
+            max: market.base_max_size && parseFloat(market.base_max_size),
+          },
+          price: priceLimits,
+          cost: {
+            min: market.min_market_funds && parseFloat(market.min_market_funds),
+            max: market.max_market_funds && parseFloat(market.max_market_funds),
+          },
+        },
+        taker,
+        active,
+        ...this.infoField(market),
+      });
+    });
+
+    return result;
   };
 }
 

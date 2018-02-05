@@ -4,8 +4,17 @@ import sum from 'lodash/sum';
 import BaseExchange from '../base/BaseExchange';
 import ExchangeError from '../base/errors/ExchangeError';
 import { ORDER_TYPES, ORDER_SIDES } from '../../constants';
+import KucoinParser from './KucoinParser';
+import { REQUIRED_CREDENTIALS, URLS, FEES, API, SIGNED_APIS } from './constants';
 
 class Kucoin extends BaseExchange {
+  static Parser = KucoinParser;
+  static REQUIRED_CREDENTIALS = REQUIRED_CREDENTIALS;
+  static URLS = URLS;
+  static FEES = FEES;
+  static API = API;
+  static SIGNED_APIS = SIGNED_APIS;
+
   getSignature(path, queryString, nonce) {
     const strForSign = `${path}/${nonce}/${queryString}`;
     const signatureStr = Buffer.from(strForSign).toString('base64');
@@ -166,7 +175,7 @@ class Kucoin extends BaseExchange {
       timestamp,
       datetime: this.iso8601(timestamp),
       symbol: market.symbol,
-      type: ORDER_TYPES.LIMIT,
+      type: ORDER_TYPES.LOWER_CASE.LIMIT,
       side,
       price: trade[2],
       amount: trade[3],
@@ -216,7 +225,7 @@ class Kucoin extends BaseExchange {
   }
 
   async createOrder(symbol, type, side, amount, price = undefined, params = {}) {
-    if (type !== ORDER_TYPES.LIMIT) {
+    if (type !== ORDER_TYPES.LOWER_CASE.LIMIT) {
       throw new ExchangeError(`${this.id} allows limit orders only`);
     }
 
@@ -386,73 +395,5 @@ class Kucoin extends BaseExchange {
     return this.parseTradingViewOHLCVs(response, market, timeframe, since, changedLimit);
   }
 }
-
-Kucoin.REQUIRED_CREDENTIALS = ['apiKey', 'apiSecret'];
-Kucoin.URLS = {
-  logo:
-    'https://user-images.githubusercontent.com/1294454/33795655-b3c46e48-dcf6-11e7-8abe-dc4588ba7901.jpg',
-  api: {
-    public: 'https://api.kucoin.com/v1',
-    private: 'https://api.kucoin.com/v1',
-    kitchen: 'https://kitchen.kucoin.com',
-  },
-  www: 'https://kucoin.com',
-  doc: 'https://kucoinapidocs.docs.apiary.io',
-  FEES: 'https://news.kucoin.com/en/fee',
-};
-Kucoin.FEES = {
-  trading: {
-    maker: 0.001,
-    taker: 0.001,
-  },
-};
-Kucoin.API = {
-  kitchen: {
-    get: ['/open/chart/history'],
-  },
-  public: {
-    get: [
-      '/open/chart/config',
-      '/open/chart/history',
-      '/open/chart/symbol',
-      '/open/currencies',
-      '/open/deal-orders',
-      '/open/kline',
-      '/open/lang-list',
-      '/open/orders',
-      '/open/orders-buy',
-      '/open/orders-sell',
-      '/open/tick',
-      '/market/open/coin-info',
-      '/market/open/coins',
-      '/market/open/coins-trending',
-      '/market/open/symbols',
-    ],
-  },
-  private: {
-    get: [
-      '/account/balance',
-      '/account/{coin}/wallet/address',
-      '/account/{coin}/wallet/records',
-      '/account/{coin}/balance',
-      '/account/promotion/info',
-      '/account/promotion/sum',
-      '/deal-orders',
-      '/order/active',
-      '/order/active-map',
-      '/order/dealt',
-      '/referrer/descendant/count',
-      '/user/info',
-    ],
-    post: [
-      '/account/{coin}/withdraw/apply',
-      '/account/{coin}/withdraw/cancel',
-      '/cancel-order',
-      '/order',
-      '/user/change-lang',
-    ],
-  },
-};
-Kucoin.SIGNED_APIS = ['private'];
 
 export default Kucoin;

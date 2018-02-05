@@ -1,9 +1,12 @@
 import omit from 'lodash/omit';
 import sortBy from 'lodash/sortBy';
+
 import { iso8601, milliseconds } from '../../utils/time';
+import { ORDER_SIDES, ORDER_STATUSES, BALANCE_TYPES } from '../../constants';
 
 class BaseParser {
-  constructor({ includeInfo = false } = {}) {
+  constructor({ exchange, includeInfo = false } = {}) {
+    this.exchange = exchange;
     this.includeInfo = includeInfo;
   }
 
@@ -11,16 +14,18 @@ class BaseParser {
 
   getCurrencyUsedOnOpenOrders = (orders, currency) =>
     Object.values(orders)
-      .filter(order => order.status === 'open')
+      .filter(order => order.status === ORDER_STATUSES.LOWER_CASE.OPEN)
       .reduce((total, order) => {
         const { symbol } = order;
         const market = this.markets[symbol];
         const amount = order.remaining;
-        if (currency === market.base && order.side === 'sell') {
+
+        if (currency === market.base && order.side === ORDER_SIDES.LOWER_CASE.SELL) {
           return total + amount;
-        } else if (currency === market.quote && order.side === 'buy') {
+        } else if (currency === market.quote && order.side === ORDER_SIDES.LOWER_CASE.BUY) {
           return total + (order.cost || order.price * amount);
         }
+
         return total;
       }, 0);
 
@@ -29,11 +34,10 @@ class BaseParser {
     const scopedBalance = balance;
 
     currencies.forEach((currency) => {
-      if (typeof balance[currency].used === 'undefined') {
+      if (!balance[currency].used) {
         if (this.parseBalanceFromOpenOrders && 'open_orders' in balance.info) {
           const exchangeOrdersCount = balance.info.open_orders;
-          const cachedOrdersCount = Object.values(orders).filter(order => order.status === 'open')
-            .length;
+          const cachedOrdersCount = Object.values(orders).filter(order => order.status === ORDER_STATUSES.LOWER_CASE.OPEN).length;
 
           if (cachedOrdersCount === exchangeOrdersCount) {
             scopedBalance[currency].used = this.getCurrencyUsedOnOpenOrders(orders, currency);
@@ -47,7 +51,11 @@ class BaseParser {
         }
       }
 
-      ['free', 'used', 'total'].forEach((account) => {
+      [
+        BALANCE_TYPES.LOWER_CASE.FREE,
+        BALANCE_TYPES.LOWER_CASE.USED,
+        BALANCE_TYPES.LOWER_CASE.TOTAL,
+      ].forEach((account) => {
         scopedBalance[account] = scopedBalance[account] || {};
         scopedBalance[account][currency] = scopedBalance[currency][account];
       });
@@ -125,11 +133,17 @@ class BaseParser {
     datetime: iso8601(timestamp),
   });
 
-  parseTrades = (trades, market, since, limit, parseTrade) => {
-    let result = Object.values(trades).map(trade => parseTrade(trade, market));
+  parseTrades = (trades, market, since, limit) => {
+    let result = Object.values(trades).map(trade => this.parseTrade(trade, market));
     result = sortBy(result, 'timestamp', true);
     return this.filterBySinceLimit(result, since, limit);
   };
+
+  parseOrders(orders, market = undefined, since = undefined, limit = undefined) {
+    const result = Object.values(orders).map(order => this.parseOrder(order, market));
+
+    return this.filterBySinceLimit(result, since, limit);
+  }
 }
 
 export default BaseParser;
