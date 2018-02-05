@@ -40,7 +40,7 @@ export const API = {
       '/funding',
       '/orders',
       '/orders/{id}',
-      '/payment-METHODS',
+      '/payment-methods',
       '/position',
       '/reports/{id}',
       '/users/self/trailing-volume',

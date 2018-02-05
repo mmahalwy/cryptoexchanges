@@ -6,6 +6,21 @@ let gdax;
 const symbol = 'ETH/USD';
 const id = 123;
 const param = 1;
+const products = [
+  {
+    tierBased: true,
+    percentage: true,
+    maker: 0,
+    taker: 0.003,
+    id: 'ETH-USD',
+    symbol: 'ETH/USD',
+    base: 'ETH',
+    quote: 'USD',
+    precision: { amount: 8, price: 2 },
+    limits: { amount: [Object], price: [Object], cost: [Object] },
+    active: true,
+  },
+];
 
 describe('GDAX', () => {
   beforeEach(() => {
@@ -15,15 +30,7 @@ describe('GDAX', () => {
       password: 'password',
     });
 
-    gdax.api.public.get.products = jest.fn(() => Promise.resolve([]));
-
-    gdax.markets = {
-      [symbol]: {
-        id: symbol,
-      },
-    };
-
-    gdax.marketsById = gdax.markets;
+    gdax.api.public.get.products = jest.fn(() => Promise.resolve(products));
   });
 
   METHODS.forEach((method) => {
@@ -65,7 +72,10 @@ describe('GDAX', () => {
 
   describe('#fetchTime', () => {
     test('should call api.public.get.time', () => {
-      const stub = jest.fn(() => Promise.resolve({ iso: '2018-02-05T01:57:40.482Z' }));
+      const stub = jest.fn(() =>
+        Promise.resolve({
+          iso: '2018-02-05T01:57:40.482Z',
+        }));
 
       gdax.api.public.get.time = stub;
 
@@ -88,7 +98,7 @@ describe('GDAX', () => {
   });
 
   describe('#fetchBalance', () => {
-    test('should call api.public.get.products', async () => {
+    test('should call api.private.get.accounts', async () => {
       const stub = jest.fn(() => Promise.resolve([]));
 
       gdax.api.private.get.accounts = stub;
@@ -105,7 +115,9 @@ describe('GDAX', () => {
 
       gdax.api.public.get.productsIdBook = stub;
 
-      await gdax.fetchOrderBook({ symbol });
+      await gdax.fetchOrderBook({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -116,7 +128,12 @@ describe('GDAX', () => {
 
       gdax.rawRequest = stub;
 
-      await gdax.fetchOrderBook({ symbol, params: { level } });
+      await gdax.fetchOrderBook({
+        symbol,
+        params: {
+          level,
+        },
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(stub).toHaveBeenCalledWith(
@@ -124,7 +141,12 @@ describe('GDAX', () => {
         Gdax.URLS.api.public,
         `/products/${symbol}/book`,
         false,
-        { id: symbol, params: { level } },
+        {
+          id: symbol,
+          params: {
+            level,
+          },
+        },
       );
     });
   });
@@ -135,7 +157,9 @@ describe('GDAX', () => {
 
       gdax.api.public.get.productsIdTicker = stub;
 
-      await gdax.fetchTicker({ symbol });
+      await gdax.fetchTicker({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -146,7 +170,12 @@ describe('GDAX', () => {
 
       gdax.rawRequest = stub;
 
-      await gdax.fetchTicker({ symbol, params: { level } });
+      await gdax.fetchTicker({
+        symbol,
+        params: {
+          level,
+        },
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(stub).toHaveBeenCalledWith(
@@ -154,7 +183,12 @@ describe('GDAX', () => {
         Gdax.URLS.api.public,
         `/products/${symbol}/ticker`,
         false,
-        { id: symbol, params: { level } },
+        {
+          id: symbol,
+          params: {
+            level,
+          },
+        },
       );
     });
   });
@@ -165,7 +199,9 @@ describe('GDAX', () => {
 
       gdax.api.private.get.fills = stub;
 
-      await gdax.fetchMyTrades({ symbol });
+      await gdax.fetchMyTrades({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -175,12 +211,20 @@ describe('GDAX', () => {
 
       gdax.rawRequest = stub;
 
-      await gdax.fetchMyTrades({ symbol, params: { param } });
+      await gdax.fetchMyTrades({
+        symbol,
+        params: {
+          param,
+        },
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, '/fills', true, {
         product_id: symbol,
-        params: { limit: undefined, param },
+        params: {
+          limit: undefined,
+          param,
+        },
       });
     });
   });
@@ -191,7 +235,9 @@ describe('GDAX', () => {
 
       gdax.api.public.get.productsIdTrades = stub;
 
-      await gdax.fetchTrades({ symbol });
+      await gdax.fetchTrades({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -201,7 +247,12 @@ describe('GDAX', () => {
 
       gdax.rawRequest = stub;
 
-      await gdax.fetchTrades({ symbol, params: { param } });
+      await gdax.fetchTrades({
+        symbol,
+        params: {
+          param,
+        },
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(stub).toHaveBeenCalledWith(
@@ -211,7 +262,9 @@ describe('GDAX', () => {
         false,
         {
           id: symbol,
-          params: { param },
+          params: {
+            param,
+          },
         },
       );
     });
@@ -223,7 +276,9 @@ describe('GDAX', () => {
 
       gdax.api.public.get.productsIdCandles = stub;
 
-      await gdax.fetchOHLCV({ symbol });
+      await gdax.fetchOHLCV({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -233,7 +288,12 @@ describe('GDAX', () => {
 
       gdax.rawRequest = stub;
 
-      await gdax.fetchOHLCV({ symbol, params: { param } });
+      await gdax.fetchOHLCV({
+        symbol,
+        params: {
+          param,
+        },
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(stub).toHaveBeenCalledWith(
@@ -243,21 +303,30 @@ describe('GDAX', () => {
         false,
         {
           id: symbol,
-          params: { granularity: 60, limit: undefined, param },
+          params: {
+            granularity: 60,
+            limit: undefined,
+            param,
+          },
         },
       );
     });
   });
 
   describe('#fetchOrder', () => {
-    const order = { product_id: id, created_at: '2018-02-05T01:57:40.482Z' };
+    const order = {
+      product_id: id,
+      created_at: '2018-02-05T01:57:40.482Z',
+    };
 
     test('should call api.private.get.ordersId', async () => {
       const stub = jest.fn(() => Promise.resolve(order));
 
       gdax.api.private.get.ordersId = stub;
 
-      await gdax.fetchOrder({ id });
+      await gdax.fetchOrder({
+        id,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -267,25 +336,37 @@ describe('GDAX', () => {
 
       gdax.rawRequest = stub;
 
-      await gdax.fetchOrder({ id, params: { param } });
+      await gdax.fetchOrder({
+        id,
+        params: {
+          param,
+        },
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, `/orders/${id}`, true, {
         id,
-        params: { param },
+        params: {
+          param,
+        },
       });
     });
   });
 
   describe('#fetchOrders', () => {
-    const order = { product_id: id, created_at: '2018-02-05T01:57:40.482Z' };
+    const order = {
+      product_id: id,
+      created_at: '2018-02-05T01:57:40.482Z',
+    };
 
     test('should call api.private.get.orders', async () => {
       const stub = jest.fn(() => Promise.resolve([order]));
 
       gdax.api.private.get.orders = stub;
 
-      await gdax.fetchOrders({ symbol });
+      await gdax.fetchOrders({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -295,25 +376,38 @@ describe('GDAX', () => {
 
       gdax.rawRequest = stub;
 
-      await gdax.fetchOrders({ symbol, params: { param } });
+      await gdax.fetchOrders({
+        symbol,
+        params: {
+          param,
+        },
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, '/orders', true, {
         product_id: symbol,
-        params: { status: ORDER_STATUSES.LOWER_CASE.ALL, param },
+        params: {
+          status: ORDER_STATUSES.LOWER_CASE.ALL,
+          param,
+        },
       });
     });
   });
 
   describe('#fetchOpenOrders', () => {
-    const order = { product_id: id, created_at: '2018-02-05T01:57:40.482Z' };
+    const order = {
+      product_id: id,
+      created_at: '2018-02-05T01:57:40.482Z',
+    };
 
     test('should call api.private.get.orders', async () => {
       const stub = jest.fn(() => Promise.resolve([order]));
 
       gdax.api.private.get.orders = stub;
 
-      await gdax.fetchOpenOrders({ symbol });
+      await gdax.fetchOpenOrders({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -323,25 +417,37 @@ describe('GDAX', () => {
 
       gdax.rawRequest = stub;
 
-      await gdax.fetchOpenOrders({ symbol, params: { param } });
+      await gdax.fetchOpenOrders({
+        symbol,
+        params: {
+          param,
+        },
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, '/orders', true, {
         product_id: symbol,
-        params: { param },
+        params: {
+          param,
+        },
       });
     });
   });
 
   describe('#fetchClosedOrders', () => {
-    const order = { product_id: id, created_at: '2018-02-05T01:57:40.482Z' };
+    const order = {
+      product_id: id,
+      created_at: '2018-02-05T01:57:40.482Z',
+    };
 
     test('should call api.private.get.orders', async () => {
       const stub = jest.fn(() => Promise.resolve([order]));
 
       gdax.api.private.get.orders = stub;
 
-      await gdax.fetchClosedOrders({ symbol });
+      await gdax.fetchClosedOrders({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -351,25 +457,38 @@ describe('GDAX', () => {
 
       gdax.rawRequest = stub;
 
-      await gdax.fetchClosedOrders({ symbol, params: { param } });
+      await gdax.fetchClosedOrders({
+        symbol,
+        params: {
+          param,
+        },
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, '/orders', true, {
         product_id: symbol,
-        params: { status: ORDER_STATUSES.LOWER_CASE.DONE, param },
+        params: {
+          status: ORDER_STATUSES.LOWER_CASE.DONE,
+          param,
+        },
       });
     });
   });
 
   describe('#createOrder', () => {
-    const order = { product_id: id, created_at: '2018-02-05T01:57:40.482Z' };
+    const order = {
+      product_id: id,
+      created_at: '2018-02-05T01:57:40.482Z',
+    };
 
     test('should call api.private.post.orders', async () => {
       const stub = jest.fn(() => Promise.resolve(order));
 
       gdax.api.private.post.orders = stub;
 
-      await gdax.createOrder({ market: symbol });
+      await gdax.createOrder({
+        market: symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -380,15 +499,93 @@ describe('GDAX', () => {
       gdax.rawRequest = stub;
 
       await gdax.createOrder({
-        market: symbol, price: 1, side: ORDER_SIDES.LOWER_CASE.BUY, type: ORDER_TYPES.LOWER_CASE.LIMIT, amount: 1, params: { param } 
-});
+        market: symbol,
+        price: 1,
+        side: ORDER_SIDES.LOWER_CASE.BUY,
+        type: ORDER_TYPES.LOWER_CASE.LIMIT,
+        amount: 1,
+        params: {
+          param,
+        },
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(stub).toHaveBeenCalledWith('post', Gdax.URLS.api.private, '/orders', true, {
         data: {
- product_id: symbol, price: 1, type: ORDER_TYPES.LOWER_CASE.LIMIT, side: ORDER_SIDES.LOWER_CASE.BUY, size: 1, param 
-},
+          product_id: symbol,
+          price: 1,
+          type: ORDER_TYPES.LOWER_CASE.LIMIT,
+          side: ORDER_SIDES.LOWER_CASE.BUY,
+          size: 1,
+          param,
+        },
       });
     });
+  });
+
+  describe('#cancelOrder', () => {
+    test('should call api.private.delete.ordersId', async () => {
+      const stub = jest.fn(() => Promise.resolve({}));
+
+      gdax.api.private.delete.ordersId = stub;
+
+      await gdax.cancelOrder({
+        id,
+      });
+
+      expect(stub).toHaveBeenCalled();
+    });
+
+    test('should pass correct client arguments', async () => {
+      const stub = jest.fn(() => Promise.resolve({}));
+
+      gdax.rawRequest = stub;
+
+      await gdax.cancelOrder({
+        id,
+      });
+
+      expect(stub).toHaveBeenCalled();
+      expect(stub).toHaveBeenCalledWith('delete', Gdax.URLS.api.private, `/orders/${id}`, true, {
+        id,
+      });
+    });
+  });
+
+  describe('#getPaymentMethods', () => {
+    test('should call api.private.get.paymentMethods', async () => {
+      const stub = jest.fn(() => Promise.resolve({}));
+
+      gdax.api.private.get.paymentMethods = stub;
+
+      await gdax.getPaymentMethods();
+
+      expect(stub).toHaveBeenCalled();
+    });
+
+    test('should pass correct client arguments', async () => {
+      const stub = jest.fn(() => Promise.resolve({}));
+
+      gdax.rawRequest = stub;
+
+      await gdax.getPaymentMethods();
+
+      expect(stub).toHaveBeenCalled();
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Gdax.URLS.api.private,
+        '/payment-methods',
+        true,
+        undefined,
+      );
+    });
+  });
+
+  describe('#deposit', () => {
+    // TODO
+  });
+
+  describe('#withdraw', () => {
+    // TODO
   });
 });

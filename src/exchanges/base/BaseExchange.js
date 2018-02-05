@@ -12,8 +12,6 @@ import isString from 'lodash/isString';
 import ExchangeError from './errors/ExchangeError';
 import AuthenticationError from './errors/AuthenticationError';
 
-const EMPTY_OBJECT = {};
-
 class Exchange {
   constructor({
     apiKey, apiSecret, uid, password, includeInfo = false, verbose = false,
@@ -207,8 +205,12 @@ class Exchange {
   }
 
   market(symbol) {
-    if (this.markets === EMPTY_OBJECT) {
+    if (!this.markets) {
       return new ExchangeError(`${this.constructor.name} markets not loaded`);
+    }
+
+    if (!symbol) {
+      throw new ExchangeError('Symbol passed to market() is undefined or null');
     }
 
     if (isString(symbol) && this.markets[symbol]) {
@@ -224,6 +226,24 @@ class Exchange {
 
   feeToPrecision(symbol, fee) {
     return parseFloat(fee).toFixed(this.markets[symbol].precision.price);
+  }
+
+  amountToPrecision(symbol, amount) {
+    return this.truncate(amount, this.markets[symbol].precision.amount);
+  }
+
+  amountToString(symbol, amount) {
+    return this.truncateToString(amount, this.markets[symbol].precision.amount);
+  }
+
+  priceToPrecision(symbol, price) {
+    return parseFloat(price).toFixed(this.markets[symbol].precision.price);
+  }
+
+  // TODO: figure this out
+  // eslint-disable-next-line
+  truncateToString(number, precision) {
+    return number && number.toFixed(precision);
   }
 
   // Validations

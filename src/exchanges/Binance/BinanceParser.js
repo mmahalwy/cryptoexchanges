@@ -1,5 +1,6 @@
 import keyBy from 'lodash/keyBy';
 import get from 'lodash/get';
+import lowerCase from 'lodash/lowerCase';
 import toInteger from 'lodash/toInteger';
 import sum from 'lodash/sum';
 
@@ -10,7 +11,7 @@ import { precisionFromString } from '../../utils/number';
 import { NULL_ID, ORDER_TYPE, MARKET_STATUS, ORDER_STATUSES, FEES } from './constants';
 
 class BinanceParser extends BaseParser {
-  parseTicker = (ticker, market = undefined, marketsById) => {
+  parseTicker = (ticker, market) => {
     let symbol;
     let scopedMarket = market;
     let timestamp = toInteger(ticker.closeTime);
@@ -23,8 +24,8 @@ class BinanceParser extends BaseParser {
     symbol = ticker.symbol;
 
     if (!market) {
-      if (marketsById[symbol]) {
-        scopedMarket = marketsById[symbol];
+      if (this.exchange.marketsById[symbol]) {
+        scopedMarket = this.exchange.marketsById[symbol];
       }
     }
 
@@ -71,7 +72,7 @@ class BinanceParser extends BaseParser {
     const result = {};
 
     symbols.forEach((symbol) => {
-      if (symbol in tickersBySymbol) {
+      if (tickersBySymbol[symbol]) {
         result[symbol] = tickersBySymbol[symbol];
       }
     });
@@ -94,10 +95,10 @@ class BinanceParser extends BaseParser {
     if (status === ORDER_STATUSES.FILLED) return 'closed';
     if (status === ORDER_STATUSES.CANCELED) return 'canceled';
 
-    return status.toLowerCase();
+    return lowerCase(status);
   };
 
-  parseOrder = (order, market, marketsById) => {
+  parseOrder = (order, market) => {
     let symbol;
     let timestamp;
     let scopedMarket = market;
@@ -112,17 +113,17 @@ class BinanceParser extends BaseParser {
       symbol = scopedMarket.symbol;
     } else {
       const id = order.symbol;
-      if (id in marketsById) {
+      if (this.exchange.marketsById[id]) {
         // eslint-disable-next-line prefer-destructuring
-        scopedMarket = marketsById[id];
+        scopedMarket = this.exchange.marketsById[id];
         // eslint-disable-next-line prefer-destructuring
         symbol = scopedMarket.symbol;
       }
     }
 
-    if ('time' in order) {
+    if (order.time) {
       timestamp = order.time;
-    } else if ('transactTime' in order) {
+    } else if (order.transactTime) {
       timestamp = order.transactTime;
     } else {
       throw new ExchangeError(`${order.id} malformed order: ${JSON.stringify(order)}`);
@@ -130,16 +131,16 @@ class BinanceParser extends BaseParser {
 
     const price = parseFloat(order.price);
     const amount = parseFloat(order.origQty);
-    const filled = this.safeFloat(order, 'executedQty', 0.0);
+    const filled = parseFloat(get(order, 'executedQty', 0.0));
     const remaining = Math.max(amount - filled, 0.0);
     const result = {
       info: order,
       id: order.orderId.toString(),
       timestamp,
-      datetime: this.iso8601(timestamp),
+      datetime: iso8601(timestamp),
       symbol,
-      type: order.type.toLowerCase(),
-      side: order.side.toLowerCase(),
+      type: lowerCase(order.type),
+      side: lowerCase(order.side),
       price,
       amount,
       cost: price * amount,
@@ -262,17 +263,17 @@ class BinanceParser extends BaseParser {
     let order;
     let fee;
 
-    if ('orderId' in trade) {
+    if (trade.orderId) {
       order = trade.orderId.toString();
     }
 
-    if ('m' in trade) {
+    if (trade.m) {
       side = trade.m ? ORDER_TYPE.SELL : ORDER_TYPE.BUY; // this is reversed intentionally
     } else {
       side = trade.isBuyer ? ORDER_TYPE.BUY : ORDER_TYPE.SELL; // this is a true side
     }
 
-    if ('commission' in trade) {
+    if (trade.commission) {
       fee = {
         cost: parseFloat(trade.commission),
         currency: this.commonCurrencyCode(trade.commissionAsset),
@@ -314,7 +315,7 @@ class BinanceParser extends BaseParser {
       result[currency] = account;
     });
 
-    return this.parser.parseBalance(balances, this.orders, result);
+    return this.parseBalance(balances, this.orders, result);
   }
 }
 

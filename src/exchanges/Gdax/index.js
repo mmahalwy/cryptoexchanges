@@ -242,6 +242,7 @@ class Gdax extends BaseExchange {
     return this.parser.parseOrders(response, market, since, limit);
   }
 
+  // TODO: Add more order types
   async createOrder({
     market, type, side, amount, price, params = {},
   } = {}) {
