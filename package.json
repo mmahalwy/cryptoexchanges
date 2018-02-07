@@ -30,7 +30,6 @@
     "es6-error": "^4.1.1",
     "lodash": "^4.17.4",
     "qs": "^6.5.1",
-    "repl.history": "^0.1.4",
     "stringinject": "^2.0.2"
   },
   "devDependencies": {
@@ -48,6 +47,7 @@
     "eslint-plugin-import": "^2.8.0",
     "eslint-plugin-jest": "^21.7.0",
     "jest": "^22.1.4",
-    "regenerator-runtime": "^0.11.1"
+    "regenerator-runtime": "^0.11.1",
+    "repl.history": "^0.1.4"
   }
 }

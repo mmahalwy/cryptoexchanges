@@ -2,15 +2,26 @@ import get from 'lodash/get';
 import toInteger from 'lodash/toInteger';
 
 import BaseParser from '../base/BaseParser';
-import { MAKER, TAKER, ORDER_TYPE, BASE_ASSETS, NON_BTC_TAKER, MARKET_STATUS } from './constants';
+import {
+  MAKER,
+  TAKER,
+  ORDER_TYPE,
+  BASE_ASSETS,
+  NON_BTC_TAKER,
+  MARKET_STATUS,
+} from './constants';
 import { iso8601 as iso8601Fn, parse8601 } from '../../utils/time';
 import { precisionFromString } from '../../utils/number';
 
 class GdaxParser extends BaseParser {
   parseTrade = (trade, market, marketsById) => {
-    const timestamp = trade.time ? parse8601(trade.time) : parse8601(trade.created_at);
+    const timestamp = trade.time
+      ? parse8601(trade.time)
+      : parse8601(trade.created_at);
     const iso8601 = timestamp && iso8601Fn(timestamp);
-    const side = trade.side === ORDER_TYPE.BUY ? ORDER_TYPE.SELL : ORDER_TYPE.BUY;
+    const side = trade.side === ORDER_TYPE.BUY
+      ? ORDER_TYPE.SELL
+      : ORDER_TYPE.BUY;
     const feeCost = toInteger(get(trade, 'fill_fees', trade.fee));
 
     let feeRate;
@@ -68,7 +79,14 @@ class GdaxParser extends BaseParser {
     };
   };
 
-  parseOHLCV = ohlcv => [ohlcv[0] * 1000, ohlcv[3], ohlcv[2], ohlcv[1], ohlcv[4], ohlcv[5]];
+  parseOHLCV = ohlcv => [
+    ohlcv[0] * 1000,
+    ohlcv[3],
+    ohlcv[2],
+    ohlcv[1],
+    ohlcv[4],
+    ohlcv[5],
+  ];
 
   parseOrderStatus = (status) => {
     const statuses = {
@@ -90,7 +108,7 @@ class GdaxParser extends BaseParser {
         market = this.exchange.marketsById[order.product_id];
       }
     }
-    
+
     const symbol = market && market.symbol;
     const timestamp = parse8601(order.created_at);
     const status = this.parseOrderStatus(order.status);
@@ -180,17 +198,16 @@ class GdaxParser extends BaseParser {
     const { trading } = this.exchange.constructor.FEES;
 
     markets.forEach((market) => {
-      const { id } = market;
-      const base = market.base_currency;
-      const quote = market.quote_currency;
+      const { id, base, quote } = market;
       const symbol = `${base}/${quote}`;
       const priceLimits = {
-        min: toInteger(market.quote_increment),
+        min: market.quote_increment && toInteger(market.quote_increment),
         max: undefined,
       };
       const precision = {
         amount: 8,
-        price: precisionFromString(market.quote_increment),
+        price: market.quote_increment &&
+          precisionFromString(market.quote_increment),
       };
 
       let { taker } = trading;

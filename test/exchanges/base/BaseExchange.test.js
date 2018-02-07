@@ -1,8 +1,8 @@
-import Exchange from '../../../src/exchanges/base/Exchange';
+import BaseExchange from '../../../src/exchanges/base/BaseExchange';
 
-describe('Exchange', () => {
+describe('BaseExchange', () => {
   describe('params', () => {
-    class MyExchange extends Exchange {
+    class MyExchange extends BaseExchange {
       static API = {
         public: { get: ['url/one'] },
       };
@@ -18,6 +18,7 @@ describe('Exchange', () => {
 
       static REQUIRED_CREDENTIALS = ['apiKey', 'apiSecret'];
       static SIGNED_APIS = [];
+      static Parser = Object;
     }
 
     test('should error when passing incomplete required params', () => {
@@ -31,7 +32,7 @@ describe('Exchange', () => {
 
   describe('api METHODS', () => {
     test('should set api METHODS', () => {
-      class MyExchange extends Exchange {
+      class MyExchange extends BaseExchange {
         static API = {
           public: { get: ['url/one'] },
           private: { get: ['url/one'] },
@@ -47,6 +48,7 @@ describe('Exchange', () => {
           },
         };
         static SIGNED_APIS = [];
+        static Parser = Object;
       }
 
       const instance = new MyExchange();
@@ -61,7 +63,7 @@ describe('Exchange', () => {
     });
 
     test.only('should call signedRequest when private', () => {
-      class MyExchange extends Exchange {
+      class MyExchange extends BaseExchange {
         static API = {
           public: { get: ['url/one'] },
           private: { get: ['url/one'] },
@@ -78,6 +80,7 @@ describe('Exchange', () => {
         };
 
         static SIGNED_APIS = ['private'];
+        static Parser = Object;
 
         getHeaders() {
           return { key: this.apiKey };
@@ -94,7 +97,7 @@ describe('Exchange', () => {
     });
 
     test('should call request when not private', () => {
-      class MyExchange extends Exchange {
+      class MyExchange extends BaseExchange {
         static API = {
           public: { get: ['url/one'] },
           private: { get: ['url/one'] },
@@ -110,6 +113,7 @@ describe('Exchange', () => {
           },
         };
         static SIGNED_APIS = ['private'];
+        static Parser = Object;
 
         getHeaders() {
           return { key: this.apiKey };

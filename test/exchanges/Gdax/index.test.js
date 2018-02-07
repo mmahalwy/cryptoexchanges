@@ -1,6 +1,10 @@
 import Gdax from '../../../src/exchanges/Gdax';
 import { METHODS } from '../../../src/exchanges/Gdax/constants';
-import { ORDER_TYPES, ORDER_SIDES, ORDER_STATUSES } from '../../../src/constants';
+import {
+  ORDER_TYPES,
+  ORDER_SIDES,
+  ORDER_STATUSES,
+} from '../../../src/constants';
 
 let gdax;
 const symbol = 'ETH/USD';
@@ -21,6 +25,7 @@ const products = [
     active: true,
   },
 ];
+const market = 'ETH-USD';
 
 describe('GDAX', () => {
   beforeEach(() => {
@@ -139,10 +144,10 @@ describe('GDAX', () => {
       expect(stub).toHaveBeenCalledWith(
         'get',
         Gdax.URLS.api.public,
-        `/products/${symbol}/book`,
+        `/products/${market}/book`,
         false,
         {
-          id: symbol,
+          id: market,
           params: {
             level,
           },
@@ -181,10 +186,10 @@ describe('GDAX', () => {
       expect(stub).toHaveBeenCalledWith(
         'get',
         Gdax.URLS.api.public,
-        `/products/${symbol}/ticker`,
+        `/products/${market}/ticker`,
         false,
         {
-          id: symbol,
+          id: market,
           params: {
             level,
           },
@@ -219,13 +224,19 @@ describe('GDAX', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, '/fills', true, {
-        product_id: symbol,
-        params: {
-          limit: undefined,
-          param,
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Gdax.URLS.api.private,
+        '/fills',
+        true,
+        {
+          product_id: market,
+          params: {
+            limit: undefined,
+            param,
+          },
         },
-      });
+      );
     });
   });
 
@@ -258,10 +269,10 @@ describe('GDAX', () => {
       expect(stub).toHaveBeenCalledWith(
         'get',
         Gdax.URLS.api.public,
-        `/products/${symbol}/trades`,
+        `/products/${market}/trades`,
         false,
         {
-          id: symbol,
+          id: market,
           params: {
             param,
           },
@@ -299,10 +310,10 @@ describe('GDAX', () => {
       expect(stub).toHaveBeenCalledWith(
         'get',
         Gdax.URLS.api.public,
-        `/products/${symbol}/candles`,
+        `/products/${market}/candles`,
         false,
         {
-          id: symbol,
+          id: market,
           params: {
             granularity: 60,
             limit: undefined,
@@ -344,12 +355,18 @@ describe('GDAX', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, `/orders/${id}`, true, {
-        id,
-        params: {
-          param,
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Gdax.URLS.api.private,
+        `/orders/${id}`,
+        true,
+        {
+          id,
+          params: {
+            param,
+          },
         },
-      });
+      );
     });
   });
 
@@ -384,13 +401,19 @@ describe('GDAX', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, '/orders', true, {
-        product_id: symbol,
-        params: {
-          status: ORDER_STATUSES.LOWER.ALL,
-          param,
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Gdax.URLS.api.private,
+        '/orders',
+        true,
+        {
+          product_id: market,
+          params: {
+            status: ORDER_STATUSES.LOWER.ALL,
+            param,
+          },
         },
-      });
+      );
     });
   });
 
@@ -425,12 +448,18 @@ describe('GDAX', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, '/orders', true, {
-        product_id: symbol,
-        params: {
-          param,
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Gdax.URLS.api.private,
+        '/orders',
+        true,
+        {
+          product_id: market,
+          params: {
+            param,
+          },
         },
-      });
+      );
     });
   });
 
@@ -465,13 +494,19 @@ describe('GDAX', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, '/orders', true, {
-        product_id: symbol,
-        params: {
-          status: ORDER_STATUSES.LOWER.DONE,
-          param,
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Gdax.URLS.api.private,
+        '/orders',
+        true,
+        {
+          product_id: market,
+          params: {
+            status: ORDER_STATUSES.LOWER.DONE,
+            param,
+          },
         },
-      });
+      );
     });
   });
 
@@ -510,16 +545,22 @@ describe('GDAX', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('post', Gdax.URLS.api.private, '/orders', true, {
-        data: {
-          product_id: symbol,
-          price: 1,
-          type: ORDER_TYPES.LOWER.LIMIT,
-          side: ORDER_SIDES.LOWER.BUY,
-          size: 1,
-          param,
+      expect(stub).toHaveBeenCalledWith(
+        'post',
+        Gdax.URLS.api.private,
+        '/orders',
+        true,
+        {
+          data: {
+            product_id: market,
+            price: 1,
+            type: ORDER_TYPES.LOWER.LIMIT,
+            side: ORDER_SIDES.LOWER.BUY,
+            size: 1,
+            param,
+          },
         },
-      });
+      );
     });
   });
 
@@ -546,9 +587,15 @@ describe('GDAX', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('delete', Gdax.URLS.api.private, `/orders/${id}`, true, {
-        id,
-      });
+      expect(stub).toHaveBeenCalledWith(
+        'delete',
+        Gdax.URLS.api.private,
+        `/orders/${id}`,
+        true,
+        {
+          id,
+        },
+      );
     });
   });
 
