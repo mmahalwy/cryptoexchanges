@@ -251,14 +251,10 @@ class BinanceParser extends BaseParser {
   };
 
   parseTrade = (trade, market) => {
-    const timestampField = 'T' in trade ? 'T' : 'time';
-    const timestamp = trade[timestampField];
-    const priceField = 'p' in trade ? 'p' : 'price';
-    const price = parseFloat(trade[priceField]);
-    const amountField = 'q' in trade ? 'q' : 'qty';
-    const amount = parseFloat(trade[amountField]);
-    const idField = 'a' in trade ? 'a' : 'id';
-    const id = trade[idField].toString();
+    const timestamp = trade.T || trade.time || trade.timestamp;
+    const price = parseFloat(trade.p || trade.price);
+    const amount = parseFloat(trade.q || trade.qty);
+    const id = trade.a || trade.id || trade.aggId;
     let side;
     let order;
     let fee;

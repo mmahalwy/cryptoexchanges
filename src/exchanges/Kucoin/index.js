@@ -5,7 +5,13 @@ import BaseExchange from '../base/BaseExchange';
 import ExchangeError from '../base/errors/ExchangeError';
 import { ORDER_TYPES, ORDER_SIDES } from '../../constants';
 import KucoinParser from './KucoinParser';
-import { REQUIRED_CREDENTIALS, URLS, FEES, API, SIGNED_APIS } from './constants';
+import {
+  REQUIRED_CREDENTIALS,
+  URLS,
+  FEES,
+  API,
+  SIGNED_APIS,
+} from './constants';
 
 class Kucoin extends BaseExchange {
   static Parser = KucoinParser;
@@ -175,7 +181,7 @@ class Kucoin extends BaseExchange {
       timestamp,
       datetime: this.iso8601(timestamp),
       symbol: market.symbol,
-      type: ORDER_TYPES.LOWER_CASE.LIMIT,
+      type: ORDER_TYPES.LOWER.LIMIT,
       side,
       price: trade[2],
       amount: trade[3],
@@ -224,8 +230,15 @@ class Kucoin extends BaseExchange {
     return this.parseBalance(result);
   }
 
-  async createOrder(symbol, type, side, amount, price = undefined, params = {}) {
-    if (type !== ORDER_TYPES.LOWER_CASE.LIMIT) {
+  async createOrder(
+    symbol,
+    type,
+    side,
+    amount,
+    price = undefined,
+    params = {},
+  ) {
+    if (type !== ORDER_TYPES.LOWER.LIMIT) {
       throw new ExchangeError(`${this.id} allows limit orders only`);
     }
 
@@ -275,7 +288,12 @@ class Kucoin extends BaseExchange {
     return response;
   }
 
-  async fetchOpenOrders(symbol = undefined, since = undefined, limit = undefined, params = {}) {
+  async fetchOpenOrders(
+    symbol = undefined,
+    since = undefined,
+    limit = undefined,
+    params = {},
+  ) {
     if (!symbol) {
       throw new ExchangeError(`${this.id} fetchOpenOrders requires a symbol param`);
     }
@@ -301,20 +319,25 @@ class Kucoin extends BaseExchange {
     return this.parseOrders(result, market, since, limit);
   }
 
-  async fetchClosedOrders(symbol = undefined, since = undefined, limit = undefined, params = {}) {
+  async fetchClosedOrders(
+    symbol = undefined,
+    since = undefined,
+    limit = undefined,
+    params = {},
+  ) {
     const request = {};
 
     await this.loadMarkets();
 
     let market;
 
-    if (typeof symbol !== 'undefined') {
+    if (symbol) {
       market = this.market(symbol);
       request.symbol = market.id;
     }
 
-    if (typeof since !== 'undefined') request.since = since;
-    if (typeof limit !== 'undefined') request.limit = limit;
+    if (since) request.since = since;
+    if (limit) request.limit = limit;
 
     const response = await this.api.private.get.orderDealt({
       ...request,
@@ -351,7 +374,13 @@ class Kucoin extends BaseExchange {
     return this.parseOHLCVs(result, market, timeframe, since, limit);
   }
 
-  async fetchOHLCV(symbol, timeframe = '1m', since = undefined, limit = undefined, params = {}) {
+  async fetchOHLCV(
+    symbol,
+    timeframe = '1m',
+    since = undefined,
+    limit = undefined,
+    params = {},
+  ) {
     await this.loadMarkets();
 
     const market = this.market(symbol);
@@ -362,19 +391,20 @@ class Kucoin extends BaseExchange {
     let minutes = resolution;
 
     if (minutes === 'D') {
-      if (typeof limit === 'undefined') changedLimit = 30; // 30 days, 1 month
+      if (!limit) changedLimit = 30; // 30 days, 1 month
       minutes = 1440;
     } else if (minutes === 'W') {
-      if (typeof changedLimit === 'undefined') changedLimit = 52; // 52 weeks, 1 year
+      if (!changedLimit) changedLimit = 52; // 52 weeks, 1 year
       minutes = 10080;
-    } else if (typeof changedLimit === 'undefined') {
+    } else if (!changedLimit) {
       changedLimit = 1440;
       minutes = 1440;
       resolution = 'D';
     }
 
+    // eslint-disable-next-line
     let start = end - minutes * 60 * changedLimit;
-    if (typeof since !== 'undefined') {
+    if (since) {
       start = parseInt(since / 1000, 10);
       end = this.sum(start, minutes * 60 * changedLimit);
     }
@@ -392,7 +422,13 @@ class Kucoin extends BaseExchange {
       ...params,
     });
 
-    return this.parseTradingViewOHLCVs(response, market, timeframe, since, changedLimit);
+    return this.parseTradingViewOHLCVs(
+      response,
+      market,
+      timeframe,
+      since,
+      changedLimit,
+    );
   }
 }
 

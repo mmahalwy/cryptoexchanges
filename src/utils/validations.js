@@ -1,13 +1,20 @@
-export const validateParams = (name, payload, requires = []) => {
-  if (!payload) {
-    throw new Error('You need to pass a payload object.');
-  }
+import forEach from 'lodash/forEach';
 
-  requires.forEach((r) => {
-    if (!payload[r] && isNaN(payload[r])) {
-      throw new Error(`Method ${name} requires ${r} parameter.`);
+// eslint-disable-next-line import/prefer-default-export
+export const validateRequiredParams = ({
+  name,
+  params,
+  error: ErrorClass = Error,
+}) => {
+  const errors = [];
+
+  forEach(params, (value, paramName) => {
+    if (!value) {
+      errors.push(paramName);
     }
   });
 
-  return true;
+  if (errors.length) {
+    throw new ErrorClass(`Method ${name} requires ${errors.join(', ')} parameters`);
+  }
 };

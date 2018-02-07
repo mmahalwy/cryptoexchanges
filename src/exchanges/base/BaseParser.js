@@ -14,15 +14,17 @@ class BaseParser {
 
   getCurrencyUsedOnOpenOrders = (orders, currency) =>
     Object.values(orders)
-      .filter(order => order.status === ORDER_STATUSES.LOWER_CASE.OPEN)
+      .filter(order => order.status === ORDER_STATUSES.LOWER.OPEN)
       .reduce((total, order) => {
         const { symbol } = order;
         const market = this.markets[symbol];
         const amount = order.remaining;
 
-        if (currency === market.base && order.side === ORDER_SIDES.LOWER_CASE.SELL) {
+        if (currency === market.base && order.side === ORDER_SIDES.LOWER.SELL) {
           return total + amount;
-        } else if (currency === market.quote && order.side === ORDER_SIDES.LOWER_CASE.BUY) {
+        } else if (
+          currency === market.quote && order.side === ORDER_SIDES.LOWER.BUY
+        ) {
           return total + (order.cost || order.price * amount);
         }
 
@@ -36,25 +38,34 @@ class BaseParser {
     currencies.forEach((currency) => {
       if (!balance[currency].used) {
         if (this.parseBalanceFromOpenOrders && 'open_orders' in balance.info) {
+          const { OPEN } = ORDER_STATUSES.LOWER;
           const exchangeOrdersCount = balance.info.open_orders;
-          const cachedOrdersCount = Object.values(orders).filter(order => order.status === ORDER_STATUSES.LOWER_CASE.OPEN).length;
+          const orderValues = Object.values(orders);
+          const openOrders = orderValues.filter(order => order.status === OPEN);
+          const cachedOrdersCount = openOrders.length;
 
           if (cachedOrdersCount === exchangeOrdersCount) {
-            scopedBalance[currency].used = this.getCurrencyUsedOnOpenOrders(orders, currency);
+            scopedBalance[currency].used = this.getCurrencyUsedOnOpenOrders(
+              orders,
+              currency,
+            );
             scopedBalance[currency].total =
               scopedBalance[currency].used + scopedBalance[currency].free;
           }
         } else {
-          scopedBalance[currency].used = this.getCurrencyUsedOnOpenOrders(orders, currency);
+          scopedBalance[currency].used = this.getCurrencyUsedOnOpenOrders(
+            orders,
+            currency,
+          );
           scopedBalance[currency].total =
             scopedBalance[currency].used + scopedBalance[currency].free;
         }
       }
 
       [
-        BALANCE_TYPES.LOWER_CASE.FREE,
-        BALANCE_TYPES.LOWER_CASE.USED,
-        BALANCE_TYPES.LOWER_CASE.TOTAL,
+        BALANCE_TYPES.LOWER.FREE,
+        BALANCE_TYPES.LOWER.USED,
+        BALANCE_TYPES.LOWER.TOTAL,
       ].forEach((account) => {
         scopedBalance[account] = scopedBalance[account] || {};
         scopedBalance[account][currency] = scopedBalance[currency][account];
@@ -79,7 +90,13 @@ class BaseParser {
     ohlcvsValues.forEach((ohlcvsValue) => {
       if (limit && result.length >= limit) return null;
 
-      const ohlcv = this.parseOHLCV(ohlcvsValue, market, timeframe, since, limit);
+      const ohlcv = this.parseOHLCV(
+        ohlcvsValue,
+        market,
+        timeframe,
+        since,
+        limit,
+      );
 
       if (since && ohlcv[0] < since) return null;
 
@@ -110,7 +127,8 @@ class BaseParser {
   };
 
   parseBidsAsks = (bidasks, priceKey = 0, amountKey = 1) =>
-    Object.values(bidasks || []).map(bidask => this.parseBidAsk(bidask, priceKey, amountKey));
+    Object.values(bidasks || []).map(bidask =>
+      this.parseBidAsk(bidask, priceKey, amountKey));
 
   parseOrderBook = (
     orderbook,
@@ -121,12 +139,16 @@ class BaseParser {
     amountKey = 1,
   ) => ({
     bids: sortBy(
-      bidsKey in orderbook ? this.parseBidsAsks(orderbook[bidsKey], priceKey, amountKey) : [],
+      bidsKey in orderbook
+        ? this.parseBidsAsks(orderbook[bidsKey], priceKey, amountKey)
+        : [],
       0,
       true,
     ),
     asks: sortBy(
-      asksKey in orderbook ? this.parseBidsAsks(orderbook[asksKey], priceKey, amountKey) : [],
+      asksKey in orderbook
+        ? this.parseBidsAsks(orderbook[asksKey], priceKey, amountKey)
+        : [],
       0,
     ),
     timestamp,
@@ -134,13 +156,20 @@ class BaseParser {
   });
 
   parseTrades = (trades, market, since, limit) => {
-    let result = Object.values(trades).map(trade => this.parseTrade(trade, market));
+    let result = Object.values(trades).map(trade =>
+      this.parseTrade(trade, market));
     result = sortBy(result, 'timestamp', true);
     return this.filterBySinceLimit(result, since, limit);
   };
 
-  parseOrders(orders, market = undefined, since = undefined, limit = undefined) {
-    const result = Object.values(orders).map(order => this.parseOrder(order, market));
+  parseOrders(
+    orders,
+    market = undefined,
+    since = undefined,
+    limit = undefined,
+  ) {
+    const result = Object.values(orders).map(order =>
+      this.parseOrder(order, market));
 
     return this.filterBySinceLimit(result, since, limit);
   }

@@ -3,7 +3,7 @@ import lowerCase from 'lodash/lowerCase';
 
 const makeLowerCaseVersion = (constants) => {
   // eslint-disable-next-line no-param-reassign
-  constants.LOWER_CASE = mapValues(constants, lowerCase);
+  constants.LOWER = mapValues(constants, lowerCase);
 
   return constants;
 };

@@ -387,7 +387,7 @@ describe('GDAX', () => {
       expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, '/orders', true, {
         product_id: symbol,
         params: {
-          status: ORDER_STATUSES.LOWER_CASE.ALL,
+          status: ORDER_STATUSES.LOWER.ALL,
           param,
         },
       });
@@ -468,7 +468,7 @@ describe('GDAX', () => {
       expect(stub).toHaveBeenCalledWith('get', Gdax.URLS.api.private, '/orders', true, {
         product_id: symbol,
         params: {
-          status: ORDER_STATUSES.LOWER_CASE.DONE,
+          status: ORDER_STATUSES.LOWER.DONE,
           param,
         },
       });
@@ -501,8 +501,8 @@ describe('GDAX', () => {
       await gdax.createOrder({
         market: symbol,
         price: 1,
-        side: ORDER_SIDES.LOWER_CASE.BUY,
-        type: ORDER_TYPES.LOWER_CASE.LIMIT,
+        side: ORDER_SIDES.LOWER.BUY,
+        type: ORDER_TYPES.LOWER.LIMIT,
         amount: 1,
         params: {
           param,
@@ -514,8 +514,8 @@ describe('GDAX', () => {
         data: {
           product_id: symbol,
           price: 1,
-          type: ORDER_TYPES.LOWER_CASE.LIMIT,
-          side: ORDER_SIDES.LOWER_CASE.BUY,
+          type: ORDER_TYPES.LOWER.LIMIT,
+          side: ORDER_SIDES.LOWER.BUY,
           size: 1,
           param,
         },

@@ -6,7 +6,7 @@ import qs from 'qs';
 import BaseExchange from '../base/BaseExchange';
 import ExchangeError from '../base/errors/ExchangeError';
 import { ORDER_TYPES } from '../../constants';
-
+import { validateRequiredParams } from '../../utils/validations';
 import { milliseconds } from '../../utils/time';
 import {
   REQUIRED_CREDENTIALS,
@@ -93,7 +93,7 @@ class Binance extends BaseExchange {
 
     let cost = parseFloat(this.costToPrecision(symbol, amount * rate));
 
-    if (side === ORDER_TYPES.LOWER_CASE.SELL) {
+    if (side === ORDER_TYPES.LOWER.SELL) {
       cost *= price;
     } else {
       key = 'base';
@@ -184,9 +184,17 @@ class Binance extends BaseExchange {
   async fetchTrades({
     symbol, since, limit, params = {},
   } = {}) {
+    validateRequiredParams({
+      name: 'fetchTrades',
+      params: { symbol },
+      error: ExchangeError,
+    });
+
     await this.loadMarkets();
     const market = this.market(symbol);
-    const setupParams = {};
+    const setupParams = {
+      symbol: market.id,
+    };
 
     if (since) {
       setupParams.startTime = since;
@@ -224,7 +232,7 @@ class Binance extends BaseExchange {
       side: upperCase(side),
     };
 
-    if (type === ORDER_TYPES.LOWER_CASE.LIMIT) {
+    if (type === ORDER_TYPES.LOWER.LIMIT) {
       order.price = this.priceToPrecision(symbol, price);
       order.timeInForce = TIME_IN_FORCE.GTC;
     }
@@ -240,9 +248,11 @@ class Binance extends BaseExchange {
   }
 
   async fetchOrder({ id, symbol, params = {} } = {}) {
-    if (!symbol) {
-      throw new ExchangeError('Binance fetchOrder requires a symbol param');
-    }
+    validateRequiredParams({
+      name: 'fetchOrder',
+      params: { symbol, id },
+      error: ExchangeError,
+    });
 
     await this.loadMarkets();
 
@@ -259,9 +269,11 @@ class Binance extends BaseExchange {
   async fetchOrders({
     symbol, since, limit, params = {},
   } = {}) {
-    if (!symbol) {
-      throw new ExchangeError('Binance fetchOrders requires a symbol param');
-    }
+    validateRequiredParams({
+      name: 'fetchOrders',
+      params: { symbol },
+      error: ExchangeError,
+    });
 
     await this.loadMarkets();
 
@@ -281,9 +293,11 @@ class Binance extends BaseExchange {
   async fetchOpenOrders({
     symbol, since, limit, params = {},
   } = {}) {
-    if (!symbol) {
-      throw new ExchangeError('Binance fetchOpenOrders requires a symbol param');
-    }
+    validateRequiredParams({
+      name: 'fetchOpenOrders',
+      params: { symbol },
+      error: ExchangeError,
+    });
 
     await this.loadMarkets();
 
@@ -295,7 +309,10 @@ class Binance extends BaseExchange {
       setupParams.symbol = market.id;
     }
 
-    const response = await this.api.private.get.openOrders({ ...setupParams, params });
+    const response = await this.api.private.get.openOrders({
+      ...setupParams,
+      params,
+    });
 
     return this.parser.parseOrders(response, market, since, limit);
   }
@@ -303,9 +320,11 @@ class Binance extends BaseExchange {
   async fetchMyTrades({
     symbol, since, limit, params = {},
   } = {}) {
-    if (!symbol) {
-      throw new ExchangeError('Binance fetchMyTrades requires a symbol argument');
-    }
+    validateRequiredParams({
+      name: 'fetchMyTrades',
+      params: { symbol },
+      error: ExchangeError,
+    });
 
     await this.loadMarkets();
 
@@ -323,11 +342,17 @@ class Binance extends BaseExchange {
   }
 
   async withdraw({
-    currency, amount, address, tag, data = {},
+    currency, amount, address, tag, params = {},
   } = {}) {
+    validateRequiredParams({
+      name: 'fetchMyTrades',
+      params: { address, amount, currency },
+      error: ExchangeError,
+    });
+
     const name = address.slice(0, 20);
     const request = {
-      asset: this.currencyId(currency),
+      asset: this.parser.currencyId(currency),
       address,
       amount: parseFloat(amount),
       name,
@@ -340,7 +365,7 @@ class Binance extends BaseExchange {
     const response = await this.api.wapi.post.withdraw({
       data: {
         ...request,
-        ...data,
+        ...params,
       },
     });
 
@@ -353,7 +378,7 @@ class Binance extends BaseExchange {
   async fetchDepositAddress({ currency, params = {} } = {}) {
     const response = await this.api.wapi.get.depositAddress({
       asset: this.parser.currencyId(currency),
-      ...params,
+      params,
     });
 
     if (response.success) {

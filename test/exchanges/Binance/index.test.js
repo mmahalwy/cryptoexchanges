@@ -1,70 +1,20 @@
 import Binance from '../../../src/exchanges/Binance';
-import { METHODS, TIMEFRAMES, DEFAULT_OHLCV_LIMIT } from '../../../src/exchanges/Binance/constants';
-import { ORDER_TYPES, ORDER_SIDES, ORDER_STATUSES } from '../../../src/constants';
+import {
+  METHODS,
+  TIMEFRAMES,
+  DEFAULT_OHLCV_LIMIT,
+} from '../../../src/exchanges/Binance/constants';
+import {
+  ORDER_TYPES,
+  ORDER_SIDES,
+} from '../../../src/constants';
+import { markets, ticker, orderBook, order, myTrades, aggTrades } from './mocks';
 
 let binance;
 const symbol = 'ETH/BTC';
 const market = 'ETHBTC';
-const id = 123;
 const param = 1;
-const markets = [
-  {
-    symbol: 'ETHBTC',
-    status: 'TRADING',
-    baseAsset: 'ETH',
-    baseAssetPrecision: 8,
-    quoteAsset: 'BTC',
-    quotePrecision: 8,
-    orderTypes: ['LIMIT', 'LIMIT_MAKER', 'MARKET', 'STOP_LOSS_LIMIT', 'TAKE_PROFIT_LIMIT'],
-    icebergAllowed: true,
-    filters: [
-      {
-        filterType: 'PRICE_FILTER',
-        minPrice: '0.00000100',
-        maxPrice: '100000.00000000',
-        tickSize: '0.00000100',
-      },
-      {
-        filterType: 'LOT_SIZE',
-        minQty: '0.00100000',
-        maxQty: '100000.00000000',
-        stepSize: '0.00100000',
-      },
-      {
-        filterType: 'MIN_NOTIONAL',
-        minNotional: '0.00100000',
-      },
-    ],
-  },
-];
-const orderBook = {
-  lastUpdateId: 100951632,
-  bids: [['0.11312300', '1.57800000', []]],
-  asks: [['0.11312300', '1.57800000', []]],
-};
-const ticker = {
-  symbol: 'ETHBTC',
-  priceChange: '0.00546200',
-  priceChangePercent: '5.073',
-  weightedAvgPrice: '0.11026035',
-  prevClosePrice: '0.10767300',
-  lastPrice: '0.11313500',
-  lastQty: '0.06100000',
-  bidPrice: '0.11313500',
-  bidQty: '0.00100000',
-  askPrice: '0.11321600',
-  askQty: '7.08100000',
-  openPrice: '0.10767300',
-  highPrice: '0.11411900',
-  lowPrice: '0.10690000',
-  volume: '108008.44000000',
-  quoteVolume: '11909.04836175',
-  openTime: 1517382804353,
-  closeTime: 1517469204353,
-  firstId: 27897964,
-  lastId: 28169819,
-  count: 271856,
-};
+const id = 123;
 
 const MARKETS_FIELDS = [
   'tierBased',
@@ -109,9 +59,15 @@ const TICKER_FIELDS = [
 
 describe('Binance', () => {
   beforeEach(() => {
-    binance = new Binance({ apiKey: 'key', apiSecret: 'secret' });
+    binance = new Binance({
+      apiKey: 'key',
+      apiSecret: 'secret',
+    });
 
-    binance.api.public.get.exchangeInfo = jest.fn(() => Promise.resolve({ symbols: markets }));
+    binance.api.public.get.exchangeInfo = jest.fn(() =>
+      Promise.resolve({
+        symbols: markets,
+      }));
   });
 
   METHODS.forEach((method) => {
@@ -126,7 +82,11 @@ describe('Binance', () => {
       const params = {};
       const timestamp = Date.now();
 
-      expect(binance.getSignature({ path, params, timestamp })).not.toBeNull();
+      expect(binance.getSignature({
+        path,
+        params,
+        timestamp,
+      })).not.toBeNull();
     });
   });
 
@@ -159,7 +119,10 @@ describe('Binance', () => {
 
   describe('#loadTimeDifference', () => {
     test('should time difference', async () => {
-      binance.api.public.get.time = jest.fn(() => Promise.resolve({ serverTime: 123 }));
+      binance.api.public.get.time = jest.fn(() =>
+        Promise.resolve({
+          serverTime: 123,
+        }));
 
       const timeDiff = await binance.loadTimeDifference();
 
@@ -191,7 +154,10 @@ describe('Binance', () => {
 
   describe('#fetchBalance', () => {
     test('should call api.private.get.account', async () => {
-      const stub = jest.fn(() => Promise.resolve({ balances: [] }));
+      const stub = jest.fn(() =>
+        Promise.resolve({
+          balances: [],
+        }));
 
       binance.api.private.get.account = stub;
 
@@ -206,7 +172,9 @@ describe('Binance', () => {
       const stub = jest.fn(() => Promise.resolve(orderBook));
       binance.api.public.get.depth = stub;
 
-      const response = await binance.fetchOrderBook({ symbol: 'ETH/BTC' });
+      const response = await binance.fetchOrderBook({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
       expect(response).toHaveProperty('timestamp');
@@ -228,13 +196,19 @@ describe('Binance', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('get', Binance.URLS.api.public, '/depth', false, {
-        params: {
-          symbol: market,
-          param,
-          limit: 100,
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Binance.URLS.api.public,
+        '/depth',
+        false,
+        {
+          params: {
+            symbol: market,
+            param,
+            limit: 100,
+          },
         },
-      });
+      );
     });
   });
 
@@ -244,7 +218,9 @@ describe('Binance', () => {
 
       binance.api.public.get.ticker24Hr = stub;
 
-      const response = await binance.fetchTicker({ symbol: 'ETH/BTC' });
+      const response = await binance.fetchTicker({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
       TICKER_FIELDS.forEach((field) => {
@@ -265,22 +241,38 @@ describe('Binance', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('get', Binance.URLS.api.public, '/ticker/24hr', false, {
-        params: {
-          symbol: market,
-          param,
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Binance.URLS.api.public,
+        '/ticker/24hr',
+        false,
+        {
+          params: {
+            symbol: market,
+            param,
+          },
         },
-      });
+      );
     });
   });
 
   describe('#fetchBidAsks', () => {
     test('should return bids and asks', async () => {
-      // TODO: get correct data
-      const stub = jest.fn(() => Promise.resolve([ticker]));
+      const bidsAsks = [
+        {
+          symbol: 'ETHBTC',
+          bidPrice: '0.09478200',
+          bidQty: '0.48200000',
+          askPrice: '0.09480100',
+          askQty: '0.00100000',
+        },
+      ];
+      const stub = jest.fn(() => Promise.resolve(bidsAsks));
       binance.api.public.get.tickerBookTicker = stub;
 
-      await binance.fetchBidAsks({ symbol: 'ETH/BTC' });
+      await binance.fetchBidAsks({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -316,7 +308,9 @@ describe('Binance', () => {
       const stub = jest.fn(() => Promise.resolve([ticker]));
       binance.api.public.get.ticker24Hr = stub;
 
-      await binance.fetchTickers({ symbol: 'ETH/BTC' });
+      await binance.fetchTickers({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -333,11 +327,17 @@ describe('Binance', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('get', Binance.URLS.api.public, '/ticker/24hr', false, {
-        params: {
-          param,
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Binance.URLS.api.public,
+        '/ticker/24hr',
+        false,
+        {
+          params: {
+            param,
+          },
         },
-      });
+      );
     });
   });
 
@@ -347,7 +347,9 @@ describe('Binance', () => {
       const stub = jest.fn(() => Promise.resolve([ticker]));
       binance.api.public.get.klines = stub;
 
-      await binance.fetchOHLCV({ symbol: 'ETH/BTC' });
+      await binance.fetchOHLCV({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
@@ -365,30 +367,38 @@ describe('Binance', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('get', Binance.URLS.api.public, '/klines', false, {
-        params: {
-          symbol: market,
-          interval: TIMEFRAMES['1m'],
-          limit: DEFAULT_OHLCV_LIMIT,
-          param,
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Binance.URLS.api.public,
+        '/klines',
+        false,
+        {
+          params: {
+            symbol: market,
+            interval: TIMEFRAMES['1m'],
+            limit: DEFAULT_OHLCV_LIMIT,
+            param,
+          },
         },
-      });
+      );
     });
   });
 
-  describe.skip('#fetchTrades', () => {
+  describe('#fetchTrades', () => {
     test('should return trades', async () => {
       // TODO: real data
-      const stub = jest.fn(() => Promise.resolve([ticker]));
+      const stub = jest.fn(() => Promise.resolve(aggTrades));
       binance.api.public.get.aggTrades = stub;
 
-      await binance.fetchTrades({ symbol: 'ETH/BTC' });
+      await binance.fetchTrades({
+        symbol,
+      });
 
       expect(stub).toHaveBeenCalled();
     });
 
     test('should pass correct client arguments', async () => {
-      const stub = jest.fn(() => Promise.resolve([]));
+      const stub = jest.fn(() => Promise.resolve(aggTrades));
 
       binance.rawRequest = stub;
 
@@ -400,20 +410,31 @@ describe('Binance', () => {
       });
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('get', Binance.URLS.api.public, '/klines', false, {
-        params: {
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Binance.URLS.api.public,
+        '/aggTrades',
+        false,
+        {
           symbol: market,
-          interval: TIMEFRAMES['1m'],
-          limit: DEFAULT_OHLCV_LIMIT,
-          param,
+          params: {
+            symbol: market,
+            param,
+          },
         },
-      });
+      );
     });
   });
 
   describe('#createOrder', () => {
-    const payload = { symbol: 'ETH/BTC', type: ORDER_TYPES.LOWER_CASE.LIMIT };
-    const order = { time: 123, orderId: 123 };
+    const payload = {
+      symbol,
+      price: 1,
+      type: ORDER_TYPES.LOWER.LIMIT,
+      params: { param },
+      amount: 1,
+      side: ORDER_SIDES.BUY,
+    };
 
     test('should create order', async () => {
       // TODO: real data
@@ -426,20 +447,296 @@ describe('Binance', () => {
     });
 
     test('should pass correct client arguments', async () => {
-      const stub = jest.fn(() => Promise.resolve({ time: 123, orderId: 123 }));
+      const stub = jest.fn(() =>
+        Promise.resolve({
+          time: 123,
+          orderId: 123,
+        }));
 
       binance.rawRequest = stub;
 
       await binance.createOrder(payload);
 
       expect(stub).toHaveBeenCalled();
-      expect(stub).toHaveBeenCalledWith('post', Binance.URLS.api.private, '/order', true, {
-        data: {
-          symbol: market,
-          type: payload.type,
+      expect(stub).toHaveBeenCalledWith(
+        'post',
+        Binance.URLS.api.private,
+        '/order',
+        true,
+        {
+          data: {
+            symbol: market,
+            type: payload.type.toUpperCase(),
+            price: '1.000000',
+            quantity: '1.000',
+            side: ORDER_SIDES.BUY,
+            timeInForce: 'GTC',
+            param,
+          },
+        },
+      );
+    });
+  });
+
+  describe('#fetchOrder', () => {
+    test('should return order', async () => {
+      // TODO: real data
+      const stub = jest.fn(() => Promise.resolve(order));
+      binance.api.private.get.order = stub;
+
+      await binance.fetchOrder({
+        id,
+        symbol,
+      });
+
+      expect(stub).toHaveBeenCalled();
+    });
+
+    test('should pass correct client arguments', async () => {
+      const stub = jest.fn(() => Promise.resolve(order));
+
+      binance.rawRequest = stub;
+
+      await binance.fetchOrder({
+        id,
+        symbol,
+        params: {
           param,
         },
       });
+
+      expect(stub).toHaveBeenCalled();
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Binance.URLS.api.private,
+        '/order',
+        true,
+        {
+          orderId: id,
+          symbol: market,
+          params: {
+            param,
+          },
+        },
+      );
+    });
+  });
+
+  describe('#fetchOrders', () => {
+    test('should return orders', async () => {
+      // TODO: real data
+      const stub = jest.fn(() => Promise.resolve([order]));
+      binance.api.private.get.allOrders = stub;
+
+      await binance.fetchOrders({
+        symbol,
+      });
+
+      expect(stub).toHaveBeenCalled();
+    });
+
+    test('should pass correct client arguments', async () => {
+      const stub = jest.fn(() => Promise.resolve([order]));
+
+      binance.rawRequest = stub;
+
+      await binance.fetchOrders({
+        symbol,
+        params: {
+          param,
+        },
+      });
+
+      expect(stub).toHaveBeenCalled();
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Binance.URLS.api.private,
+        '/allOrders',
+        true,
+        {
+          symbol: market,
+          params: {
+            param,
+          },
+        },
+      );
+    });
+  });
+
+  describe('#fetchOpenOrders', () => {
+    test('should return open orders', async () => {
+      // TODO: real data
+      const stub = jest.fn(() => Promise.resolve([order]));
+      binance.api.private.get.openOrders = stub;
+
+      await binance.fetchOpenOrders({
+        symbol,
+      });
+
+      expect(stub).toHaveBeenCalled();
+    });
+
+    test('should pass correct client arguments', async () => {
+      const stub = jest.fn(() => Promise.resolve([order]));
+
+      binance.rawRequest = stub;
+
+      await binance.fetchOpenOrders({
+        symbol,
+        params: {
+          param,
+        },
+      });
+
+      expect(stub).toHaveBeenCalled();
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Binance.URLS.api.private,
+        '/openOrders',
+        true,
+        {
+          symbol: market,
+          params: {
+            param,
+          },
+        },
+      );
+    });
+  });
+
+  describe('#fetchMyTrades', () => {
+    test('should return open orders', async () => {
+      // TODO: real data
+      const stub = jest.fn(() => Promise.resolve(myTrades));
+      binance.api.private.get.myTrades = stub;
+
+      await binance.fetchMyTrades({
+        symbol,
+      });
+
+      expect(stub).toHaveBeenCalled();
+    });
+
+    test('should pass correct client arguments', async () => {
+      const stub = jest.fn(() => Promise.resolve(myTrades));
+
+      binance.rawRequest = stub;
+
+      await binance.fetchMyTrades({
+        symbol,
+        params: {
+          param,
+        },
+      });
+
+      expect(stub).toHaveBeenCalled();
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Binance.URLS.api.private,
+        '/myTrades',
+        true,
+        {
+          symbol: market,
+          params: {
+            param,
+          },
+        },
+      );
+    });
+  });
+
+  describe('#withdraw', () => {
+    const address = 'address';
+    const amount = 1;
+    const currency = 'CUR';
+
+    test('should return withdraw order', async () => {
+      // TODO: real data
+      const stub = jest.fn(() => Promise.resolve({}));
+      binance.api.wapi.post.withdraw = stub;
+
+      await binance.withdraw({
+        address,
+        amount,
+        currency,
+      });
+
+      expect(stub).toHaveBeenCalled();
+    });
+
+    test('should pass correct client arguments', async () => {
+      const stub = jest.fn(() => Promise.resolve({}));
+
+      binance.rawRequest = stub;
+
+      await binance.withdraw({
+        address,
+        amount,
+        currency,
+        params: {
+          param,
+        },
+      });
+
+      expect(stub).toHaveBeenCalled();
+      expect(stub).toHaveBeenCalledWith(
+        'post',
+        Binance.URLS.api.wapi,
+        '/withdraw',
+        true,
+        {
+          data: {
+            address,
+            amount,
+            asset: currency,
+            name: address,
+            param,
+          },
+        },
+      );
+    });
+  });
+
+  describe('#fetchDepositAddress', () => {
+    const currency = 'CUR';
+
+    test('should return deposit address', async () => {
+      // TODO: real data
+      const stub = jest.fn(() => Promise.resolve({ success: true }));
+      binance.api.wapi.get.depositAddress = stub;
+
+      await binance.fetchDepositAddress({
+        currency,
+      });
+
+      expect(stub).toHaveBeenCalled();
+    });
+
+    test('should pass correct client arguments', async () => {
+      const stub = jest.fn(() => Promise.resolve({ success: true }));
+
+      binance.rawRequest = stub;
+
+      await binance.fetchDepositAddress({
+        currency,
+        params: {
+          param,
+        },
+      });
+
+      expect(stub).toHaveBeenCalled();
+      expect(stub).toHaveBeenCalledWith(
+        'get',
+        Binance.URLS.api.wapi,
+        '/depositAddress',
+        true,
+        {
+          asset: currency,
+          params: {
+            param,
+          },
+        },
+      );
     });
   });
 });

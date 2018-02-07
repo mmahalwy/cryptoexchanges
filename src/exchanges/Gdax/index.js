@@ -190,7 +190,7 @@ class Gdax extends BaseExchange {
 
     const response = await this.api.private.get.orders({
       ...request,
-      params: { ...params, status: ORDER_STATUSES.LOWER_CASE.ALL },
+      params: { ...params, status: ORDER_STATUSES.LOWER.ALL },
     });
 
     return this.parser.parseOrders(response, market, since, limit);
@@ -236,7 +236,7 @@ class Gdax extends BaseExchange {
 
     const response = await this.api.private.get.orders({
       ...request,
-      params: { ...params, status: ORDER_STATUSES.LOWER_CASE.DONE },
+      params: { ...params, status: ORDER_STATUSES.LOWER.DONE },
     });
 
     return this.parser.parseOrders(response, market, since, limit);
@@ -256,7 +256,7 @@ class Gdax extends BaseExchange {
       ...params,
     };
 
-    if (type === ORDER_TYPES.LOWER_CASE.LIMIT) {
+    if (type === ORDER_TYPES.LOWER.LIMIT) {
       order.price = price;
     }
 
