@@ -1,6 +1,6 @@
 # cryptoexchanges
 
-An all in one library for the various cryptocurrency exchanges.
+An all in one library for the various cryptocurrency exchanges. This library takes inspiration from [ccxt](https://github.com/ccxt/ccxt).
 
 ### Getting started
 ```
