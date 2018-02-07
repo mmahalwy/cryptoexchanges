@@ -1,22 +1,17 @@
 {
   "presets": [
-    ["@babel/preset-env", {
-      "modules": false
-    }]
+    ["@babel/preset-env"]
   ],
   "plugins": [
     "@babel/plugin-proposal-class-properties",
     "@babel/plugin-proposal-object-rest-spread"
   ],
   "env": {
-    "commonjs": {
+    "es": {
       "presets": [
-        ["@babel/preset-env"]
-      ]
-    },
-    "test": {
-      "presets": [
-        ["@babel/preset-env"]
+        ["@babel/preset-env", {
+          "modules": false
+        }]
       ]
     }
   }

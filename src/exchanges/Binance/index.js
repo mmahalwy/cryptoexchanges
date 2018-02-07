@@ -42,7 +42,13 @@ class Binance extends BaseExchange {
     return signatureResult;
   }
 
-  sign({ path, params, nonce }) {
+  sign({ path, params }) {
+    const nonce = new Date().getTime();
+
+    if (this.verbose) {
+      console.log(`Signing with nonce: ${nonce}, path: ${path}, params: ${params}`);
+    }
+
     return {
       params: {
         ...params,
@@ -111,6 +117,7 @@ class Binance extends BaseExchange {
     await this.loadMarkets();
 
     const response = await this.api.private.get.account({ params });
+
     return this.parser.parserBalances(response);
   }
 
@@ -130,6 +137,8 @@ class Binance extends BaseExchange {
   }
 
   async fetchTicker({ symbol, params = {} } = {}) {
+    validateRequiredParams({ name: 'fetchTicker', params: { symbol } });
+
     await this.loadMarkets();
 
     const market = this.market(symbol);
@@ -258,9 +267,11 @@ class Binance extends BaseExchange {
 
     const market = this.market(symbol);
     const response = await this.api.private.get.order({
-      symbol: market.id,
-      orderId: parseInt(id, 10),
-      params,
+      params: {
+        symbol: market.id,
+        orderId: parseInt(id, 10),
+        ...params,
+      },
     });
 
     return this.parser.parseOrder(response, market);
@@ -331,8 +342,8 @@ class Binance extends BaseExchange {
     const market = this.market(symbol);
 
     const response = await this.api.private.get.myTrades({
-      symbol: market.id,
       params: {
+        symbol: market.id,
         limit,
         ...params,
       },

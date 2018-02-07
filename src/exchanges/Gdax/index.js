@@ -7,7 +7,14 @@ import BaseExchange from '../base/BaseExchange';
 import NotSupported from '../base/errors/NotSupported';
 import ExchangeError from '../base/errors/ExchangeError';
 import { ORDER_TYPES, ORDER_STATUSES } from '../../constants';
-import { REQUIRED_CREDENTIALS, URLS, FEES, API, SIGNED_APIS, TIMEFRAMES } from './constants';
+import {
+  REQUIRED_CREDENTIALS,
+  URLS,
+  FEES,
+  API,
+  SIGNED_APIS,
+  TIMEFRAMES,
+} from './constants';
 import GdaxParser from './GdaxParser';
 
 import { parse8601, ymdhms } from '../../utils/time';
@@ -21,26 +28,32 @@ class Gdax extends BaseExchange {
   static SIGNED_APIS = SIGNED_APIS;
 
   getSignature({
-    nonce, method, path, data,
+    nonce, method, url, data,
   }) {
-    const strForSign = nonce + upperCase(method) + path + JSON.stringify(data);
-    const key = Buffer.from(this.apiSecret).toString('base64');
+    const body = data ? JSON.stringify(data) : '';
+    const strForSign = nonce + upperCase(method) + url + body;
 
-    const signatureResult = crypto
-      .createHmac('sha256', key)
-      .update(strForSign)
-      .digest('base64');
+    const key = Buffer.from(this.apiSecret, 'base64');
 
-    return signatureResult;
+    return crypto.createHmac('sha256', key).update(strForSign).digest('base64');
   }
 
-  sign(payload) {
-    const { nonce } = payload;
+  sign({ method, url, data }) {
+    const nonce = Date.now() / 1000;
+
+    if (this.verbose) {
+      console.log(`Signing with ${nonce}, method: ${method}, path: ${url}, data: ${data}`);
+    }
 
     return {
       headers: {
         'CB-ACCESS-KEY': this.apiKey,
-        'CB-ACCESS-SIGN': this.getSignature(payload),
+        'CB-ACCESS-SIGN': this.getSignature({
+          method,
+          url,
+          data,
+          nonce,
+        }),
         'CB-ACCESS-TIMESTAMP': nonce,
         'CB-ACCESS-PASSPHRASE': this.password,
       },
@@ -109,7 +122,13 @@ class Gdax extends BaseExchange {
       },
     });
 
-    return this.parser.parseTrades(response, market, since, limit, this.marketsById);
+    return this.parser.parseTrades(
+      response,
+      market,
+      since,
+      limit,
+      this.marketsById,
+    );
   }
 
   async fetchTrades({
@@ -123,7 +142,13 @@ class Gdax extends BaseExchange {
       params,
     });
 
-    return this.parser.parseTrades(response, market, since, limit, this.marketsById);
+    return this.parser.parseTrades(
+      response,
+      market,
+      since,
+      limit,
+      this.marketsById,
+    );
   }
 
   async fetchOHLCV({
@@ -197,10 +222,7 @@ class Gdax extends BaseExchange {
   }
 
   async fetchOpenOrders({
-    symbol,
-    since,
-    limit,
-    params = {},
+    symbol, since, limit, params = {},
   } = {}) {
     await this.loadMarkets();
 
@@ -307,7 +329,9 @@ class Gdax extends BaseExchange {
     const methodFunction = get(this, method);
     const response = await methodFunction({ ...request, ...params });
 
-    if (!response) throw new ExchangeError(`Gdax deposit() error: ${JSON.stringify(response)}`);
+    if (!response) {
+      throw new ExchangeError(`Gdax deposit() error: ${JSON.stringify(response)}`);
+    }
 
     return {
       info: response,

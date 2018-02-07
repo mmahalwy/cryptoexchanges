@@ -25,6 +25,6 @@ export const ORDER_STATUSES = makeLowerCaseVersion({
 
 export const BALANCE_TYPES = makeLowerCaseVersion({
   FREE: 'FREE',
-  USER: 'USER',
+  USED: 'USED',
   TOTAL: 'TOTAL',
 });

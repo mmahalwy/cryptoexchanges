@@ -14,7 +14,12 @@ import AuthenticationError from './errors/AuthenticationError';
 
 class Exchange {
   constructor({
-    apiKey, apiSecret, uid, password, includeInfo = false, verbose = false,
+    apiKey,
+    apiSecret,
+    uid,
+    password,
+    includeInfo = false,
+    verbose = false,
   } = {}) {
     this.apiKey = apiKey;
     this.apiSecret = apiSecret;
@@ -49,8 +54,6 @@ class Exchange {
   marketsById = null;
 
   async rawRequest(method, baseUrl, path, signed = false, requestConfig = {}) {
-    const nonce = new Date().getTime();
-
     const options = {
       baseURL: baseUrl,
       url: path,
@@ -63,8 +66,7 @@ class Exchange {
       merge(
         options,
         this.sign({
-          options,
-          nonce,
+          ...options,
           ...requestConfig,
         }),
       );
@@ -72,17 +74,32 @@ class Exchange {
 
     try {
       if (this.verbose) {
-        console.log(`Request: ${baseUrl}, Path: ${path}, Config: ${JSON.stringify(requestConfig)}`);
+        console.log(`Request: ${baseUrl}, Path: ${path}, Options: ${JSON.stringify(options)}, Config: ${JSON.stringify(requestConfig)}`);
       }
 
       const response = await this.client(options);
 
       return response.data;
-    } catch (e) {
+    } catch (error) {
       // TODO: handle error
-      console.error(e);
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.log(error.response.data);
+        console.log(error.response.status);
+        console.log(error.response.headers);
+      } else if (error.request) {
+        // The request was made but no response was received
+        // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+        // http.ClientRequest in node.js
+        console.log(error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.log('Error', error.message);
+      }
+      console.log(error.config);
 
-      throw e;
+      return null;
     }
   }
 
@@ -129,7 +146,9 @@ class Exchange {
       this.api[name][method][camelCase(path)] = (requestConfig) => {
         const requestMethod = isPrivate ? this.signedRequest : this.request;
         // Handle paths that are `/order/{id}` to `/order/1`
-        const injectedPath = requestConfig ? stringinject(path, requestConfig) : path;
+        const injectedPath = requestConfig
+          ? stringinject(path, requestConfig)
+          : path;
 
         return requestMethod(method, baseUrl, injectedPath, requestConfig);
       };
@@ -173,21 +192,30 @@ class Exchange {
     if (currencies) {
       this.currencies = merge(currencies, this.currencies);
     } else {
-      const baseCurrencies = values.filter(market => 'base' in market).map(market => ({
-        id: market.baseId || market.base,
-        code: market.base,
-        precision: market.precision ? market.precision.base || market.precision.amount : 8,
-      }));
-      const quoteCurrencies = values.filter(market => 'quote' in market).map(market => ({
-        id: market.quoteId || market.quote,
-        code: market.quote,
-        precision: market.precision ? market.precision.quote || market.precision.price : 8,
-      }));
+      const baseCurrencies = values
+        .filter(market => 'base' in market)
+        .map(market => ({
+          id: market.baseId || market.base,
+          code: market.base,
+          precision: market.precision
+            ? market.precision.base || market.precision.amount
+            : 8,
+        }));
+      const quoteCurrencies = values
+        .filter(market => 'quote' in market)
+        .map(market => ({
+          id: market.quoteId || market.quote,
+          code: market.quote,
+          precision: market.precision
+            ? market.precision.quote || market.precision.price
+            : 8,
+        }));
       const allCurrencies = baseCurrencies.concat(quoteCurrencies);
       const groupedCurrencies = groupBy(allCurrencies, 'code');
       const currentCurrencies = Object.keys(groupedCurrencies).map(code =>
         groupedCurrencies[code].reduce(
-          (previous, current) => (previous.precision > current.precision ? previous : current),
+          (previous, current) =>
+            (previous.precision > current.precision ? previous : current),
           groupedCurrencies[code][0],
         ));
       const sortedCurrencies = sortBy(flatten(currentCurrencies), 'code');

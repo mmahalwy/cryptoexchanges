@@ -31,9 +31,10 @@ class BaseParser {
         return total;
       }, 0);
 
-  parseBalance = (orders, balance) => {
+  parseBalance = (balance) => {
     const currencies = Object.keys(omit(balance, 'info'));
     const scopedBalance = balance;
+    const { orders } = this.exchange;
 
     currencies.forEach((currency) => {
       if (!balance[currency].used) {
@@ -45,31 +46,22 @@ class BaseParser {
           const cachedOrdersCount = openOrders.length;
 
           if (cachedOrdersCount === exchangeOrdersCount) {
-            scopedBalance[currency].used = this.getCurrencyUsedOnOpenOrders(
-              orders,
-              currency,
-            );
-            scopedBalance[currency].total =
-              scopedBalance[currency].used + scopedBalance[currency].free;
+            scopedBalance[currency][
+              BALANCE_TYPES.LOWER.USED
+            ] = this.getCurrencyUsedOnOpenOrders(orders, currency);
+            scopedBalance[currency][BALANCE_TYPES.LOWER.TOTAL] =
+              scopedBalance[currency][BALANCE_TYPES.LOWER.USED] +
+              scopedBalance[currency][BALANCE_TYPES.LOWER.FREE];
           }
         } else {
-          scopedBalance[currency].used = this.getCurrencyUsedOnOpenOrders(
-            orders,
-            currency,
-          );
-          scopedBalance[currency].total =
-            scopedBalance[currency].used + scopedBalance[currency].free;
+          scopedBalance[currency][
+            BALANCE_TYPES.LOWER.USED
+          ] = this.getCurrencyUsedOnOpenOrders(orders, currency);
+          scopedBalance[currency][BALANCE_TYPES.LOWER.TOTAL] =
+            scopedBalance[currency][BALANCE_TYPES.LOWER.USED] +
+            scopedBalance[currency][BALANCE_TYPES.LOWER.FREE];
         }
       }
-
-      [
-        BALANCE_TYPES.LOWER.FREE,
-        BALANCE_TYPES.LOWER.USED,
-        BALANCE_TYPES.LOWER.TOTAL,
-      ].forEach((account) => {
-        scopedBalance[account] = scopedBalance[account] || {};
-        scopedBalance[account][currency] = scopedBalance[currency][account];
-      });
     });
 
     return scopedBalance;

@@ -1,20 +1,25 @@
 import keyBy from 'lodash/keyBy';
 import get from 'lodash/get';
 import lowerCase from 'lodash/lowerCase';
-import toInteger from 'lodash/toInteger';
 import sum from 'lodash/sum';
 
 import ExchangeError from '../base/errors/ExchangeError';
 import BaseParser from '../base/BaseParser';
 import { iso8601, milliseconds } from '../../utils/time';
 import { precisionFromString } from '../../utils/number';
-import { NULL_ID, ORDER_TYPE, MARKET_STATUS, ORDER_STATUSES, FEES } from './constants';
+import {
+  NULL_ID,
+  ORDER_TYPE,
+  MARKET_STATUS,
+  ORDER_STATUSES,
+  FEES,
+} from './constants';
 
 class BinanceParser extends BaseParser {
   parseTicker = (ticker, market) => {
     let symbol;
     let scopedMarket = market;
-    let timestamp = toInteger(ticker.closeTime);
+    let timestamp = parseFloat(ticker.closeTime);
 
     if (!timestamp) {
       timestamp = milliseconds();
@@ -38,23 +43,23 @@ class BinanceParser extends BaseParser {
       symbol,
       timestamp,
       datetime: iso8601(timestamp),
-      high: toInteger(ticker.highPrice),
-      low: toInteger(ticker.lowPrice),
-      bid: toInteger(ticker.bidPrice),
-      bidVolume: toInteger(ticker.bidQty),
-      ask: toInteger(ticker.askPrice),
-      askVolume: toInteger(ticker.askQty),
-      vwap: toInteger(ticker.weightedAvgPrice),
-      open: toInteger(ticker.openPrice),
-      close: toInteger(ticker.prevClosePrice),
+      high: parseFloat(ticker.highPrice),
+      low: parseFloat(ticker.lowPrice),
+      bid: parseFloat(ticker.bidPrice),
+      bidVolume: parseFloat(ticker.bidQty),
+      ask: parseFloat(ticker.askPrice),
+      askVolume: parseFloat(ticker.askQty),
+      vwap: parseFloat(ticker.weightedAvgPrice),
+      open: parseFloat(ticker.openPrice),
+      close: parseFloat(ticker.prevClosePrice),
       first: undefined,
-      last: toInteger(ticker.lastPrice),
-      change: toInteger(ticker.priceChangePercent),
+      last: parseFloat(ticker.lastPrice),
+      change: parseFloat(ticker.priceChangePercent),
       percentage: undefined,
       average: undefined,
-      baseVolume: toInteger(ticker.volume),
-      quoteVolume: toInteger(ticker.quoteVolume),
-      info: ticker,
+      baseVolume: parseFloat(ticker.volume),
+      quoteVolume: parseFloat(ticker.quoteVolume),
+      ...this.infoField(ticker),
     };
   };
 
@@ -134,7 +139,7 @@ class BinanceParser extends BaseParser {
     const filled = parseFloat(get(order, 'executedQty', 0.0));
     const remaining = Math.max(amount - filled, 0.0);
     const result = {
-      info: order,
+      ...this.infoField(order),
       id: order.orderId.toString(),
       timestamp,
       datetime: iso8601(timestamp),
@@ -154,7 +159,8 @@ class BinanceParser extends BaseParser {
   };
 
   parseOrders = (orders, market, since, limit) => {
-    const result = Object.values(orders).map(order => this.parseOrder(order, market));
+    const result = Object.values(orders).map(order =>
+      this.parseOrder(order, market));
 
     return this.filterBySinceLimit(result, since, limit);
   };
@@ -199,7 +205,7 @@ class BinanceParser extends BaseParser {
         quote,
         baseId,
         quoteId,
-        info: market,
+        ...this.infoField(market),
         lot,
         active,
         precision,
@@ -277,7 +283,7 @@ class BinanceParser extends BaseParser {
     }
 
     return {
-      info: trade,
+      ...this.infoField(trade),
       timestamp,
       datetime: iso8601(timestamp),
       symbol: market.symbol,
@@ -311,7 +317,7 @@ class BinanceParser extends BaseParser {
       result[currency] = account;
     });
 
-    return this.parseBalance(balances, this.orders, result);
+    return this.parseBalance(result);
   }
 }
 

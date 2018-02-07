@@ -1,5 +1,4 @@
 import get from 'lodash/get';
-import toInteger from 'lodash/toInteger';
 
 import BaseParser from '../base/BaseParser';
 import {
@@ -22,7 +21,7 @@ class GdaxParser extends BaseParser {
     const side = trade.side === ORDER_TYPE.BUY
       ? ORDER_TYPE.SELL
       : ORDER_TYPE.BUY;
-    const feeCost = toInteger(get(trade, 'fill_fees', trade.fee));
+    const feeCost = parseFloat(get(trade, 'fill_fees', trade.fee));
 
     let feeRate;
     let feeCurrency;
@@ -67,14 +66,14 @@ class GdaxParser extends BaseParser {
     return {
       id,
       order: orderId,
-      info: trade,
+      ...this.infoField(trade),
       timestamp,
       datetime: iso8601,
       symbol,
       type,
       side,
-      price: toInteger(trade.price),
-      amount: toInteger(trade.size),
+      price: parseFloat(trade.price),
+      amount: parseFloat(trade.size),
       fee,
     };
   };
@@ -112,12 +111,12 @@ class GdaxParser extends BaseParser {
     const symbol = market && market.symbol;
     const timestamp = parse8601(order.created_at);
     const status = this.parseOrderStatus(order.status);
-    const price = toInteger(get(order, 'price'));
-    const amount = toInteger(get(order, 'size') || get(order, 'funds') || get(order, 'specified_funds'));
-    const filled = toInteger(get(order, 'filled_size'));
-    const cost = toInteger(get(order, 'executed_value'));
+    const price = parseFloat(get(order, 'price'));
+    const amount = parseFloat(get(order, 'size') || get(order, 'funds') || get(order, 'specified_funds'));
+    const filled = parseFloat(get(order, 'filled_size'));
+    const cost = parseFloat(get(order, 'executed_value'));
     const fee = {
-      cost: toInteger(get(order, 'fill_fees')),
+      cost: parseFloat(get(order, 'fill_fees')),
       currency: undefined,
       rate: undefined,
     };
@@ -132,7 +131,7 @@ class GdaxParser extends BaseParser {
 
     return {
       id: order.id,
-      info: order,
+      ...this.infoField(order),
       timestamp,
       datetime: iso8601Fn(timestamp),
       status,
@@ -154,9 +153,9 @@ class GdaxParser extends BaseParser {
     balances.forEach((balance) => {
       const { currency } = balance;
       const account = {
-        free: toInteger(balance.available),
-        used: toInteger(balance.hold),
-        total: toInteger(balance.balance),
+        free: parseFloat(balance.available),
+        used: parseFloat(balance.hold),
+        total: parseFloat(balance.balance),
       };
 
       result[currency] = account;
@@ -168,8 +167,8 @@ class GdaxParser extends BaseParser {
   parseTicker(ticker, symbol) {
     const timestamp = ticker.time && parse8601(ticker.time);
     const datetime = timestamp && iso8601Fn(timestamp);
-    const bid = ticker.bid ? toInteger(ticker.bid) : null;
-    const ask = ticker.ask ? toInteger(ticker.ask) : null;
+    const bid = ticker.bid ? parseFloat(ticker.bid) : null;
+    const ask = ticker.ask ? parseFloat(ticker.ask) : null;
 
     return {
       symbol,
@@ -183,11 +182,11 @@ class GdaxParser extends BaseParser {
       open: undefined,
       close: undefined,
       first: undefined,
-      last: toInteger(ticker.price),
+      last: parseFloat(ticker.price),
       change: undefined,
       percentage: undefined,
       average: undefined,
-      baseVolume: toInteger(ticker.volume),
+      baseVolume: parseFloat(ticker.volume),
       quoteVolume: undefined,
       ...this.infoField(ticker),
     };
@@ -201,7 +200,7 @@ class GdaxParser extends BaseParser {
       const { id, base, quote } = market;
       const symbol = `${base}/${quote}`;
       const priceLimits = {
-        min: market.quote_increment && toInteger(market.quote_increment),
+        min: market.quote_increment && parseFloat(market.quote_increment),
         max: undefined,
       };
       const precision = {
