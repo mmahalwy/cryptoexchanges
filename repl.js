@@ -3,6 +3,7 @@ import os from 'os';
 import path from 'path';
 import logger from 'better-log';
 
+import * as marketcap from './src/marketcap';
 import Binance from './src/exchanges/Binance';
 // import Kucoin from './src/exchanges/Kucoin';
 import Gdax from './src/exchanges/Gdax';
@@ -55,6 +56,7 @@ replServer.context.binance = new Binance(binanceParams);
 // replServer.context.kucoin = new Kucoin();
 replServer.context.Gdax = Gdax;
 replServer.context.gdax = new Gdax(gdaxParams);
+replServer.context.marketcap = marketcap;
 replServer.context.log = log;
 
 require('repl.history')(replServer, historyFile);
