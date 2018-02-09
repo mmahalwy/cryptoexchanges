@@ -3,10 +3,7 @@ import os from 'os';
 import path from 'path';
 import logger from 'better-log';
 
-import * as marketcap from './src/marketcap';
-import Binance from './src/exchanges/Binance';
-// import Kucoin from './src/exchanges/Kucoin';
-import Gdax from './src/exchanges/Gdax';
+const decache = require('decache');
 
 logger.setConfig({ depth: null });
 const historyFile = path.join(os.homedir(), '.node_history');
@@ -29,34 +26,61 @@ const log = async (promise) => {
   }
 };
 
-const binanceParams = process.env.BINANCE_API_KEY
-  ? {
-    apiKey: process.env.BINANCE_API_KEY,
-    apiSecret: process.env.BINANCE_API_SECRET,
-    verbose: true,
-  }
-  : {
-    verbose: true,
-  };
-const gdaxParams = process.env.GDAX_API_KEY
-  ? {
-    apiKey: process.env.GDAX_API_KEY,
-    apiSecret: process.env.GDAX_API_SECRET,
-    password: process.env.GDAX_PASSPHRASE,
-    verbose: true,
-  }
-  : {
-    verbose: true,
-  };
+const reload = () => {
+  decache('./src/marketcap');
+  decache('./src/Aggregation');
+  decache('./src/exchanges/Binance');
+  decache('./src/exchanges/Gdax');
 
-// attach my modules to the repl context
-replServer.context.Binance = Binance;
-replServer.context.binance = new Binance(binanceParams);
-// replServer.context.Kucoin = Kucoin;
-// replServer.context.kucoin = new Kucoin();
-replServer.context.Gdax = Gdax;
-replServer.context.gdax = new Gdax(gdaxParams);
-replServer.context.marketcap = marketcap;
+  const marketcap = require('./src/marketcap');
+  const Aggregation = require('./src/Aggregation').default;
+
+  const Binance = require('./src/exchanges/Binance').default;
+  // import Kucoin from './src/exchanges/Kucoin';
+  const Gdax = require('./src/exchanges/Gdax').default;
+
+  const binanceParams = process.env.BINANCE_API_KEY
+    ? {
+      apiKey: process.env.BINANCE_API_KEY,
+      apiSecret: process.env.BINANCE_API_SECRET,
+      verbose: true,
+    }
+    : {
+      verbose: true,
+    };
+  const gdaxParams = process.env.GDAX_API_KEY
+    ? {
+      apiKey: process.env.GDAX_API_KEY,
+      apiSecret: process.env.GDAX_API_SECRET,
+      password: process.env.GDAX_PASSPHRASE,
+      verbose: true,
+    }
+    : {
+      verbose: true,
+    };
+
+  const gdax = new Gdax(gdaxParams);
+  const binance = new Binance(binanceParams);
+  const aggregation = new Aggregation({
+    exchanges: [gdax, binance],
+  });
+
+  // attach my modules to the repl context
+  replServer.context.Binance = Binance;
+  replServer.context.binance = binance;
+  // replServer.context.Kucoin = Kucoin;
+  // replServer.context.kucoin = new Kucoin();
+  replServer.context.Gdax = Gdax;
+  replServer.context.gdax = gdax;
+  replServer.context.Aggregation = Aggregation;
+  replServer.context.aggregation = aggregation;
+  replServer.context.agg = aggregation;
+  replServer.context.marketcap = marketcap;
+};
+
+reload();
+
+replServer.context.reload = reload;
 replServer.context.log = log;
 
 require('repl.history')(replServer, historyFile);
