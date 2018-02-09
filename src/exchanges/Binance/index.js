@@ -8,6 +8,7 @@ import ExchangeError from '../base/errors/ExchangeError';
 import { ORDER_TYPES } from '../../constants';
 import { validateRequiredParams } from '../../utils/validations';
 import { milliseconds } from '../../utils/time';
+import debug from '../../utils/debug';
 import {
   REQUIRED_CREDENTIALS,
   URLS,
@@ -46,7 +47,7 @@ class Binance extends BaseExchange {
     const nonce = new Date().getTime();
 
     if (this.verbose) {
-      console.log(`Signing with nonce: ${nonce}, path: ${path}, params: ${params}`);
+      debug(`Signing with nonce: ${nonce}, path: ${path}, params: ${params}`);
     }
 
     return {

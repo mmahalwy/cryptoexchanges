@@ -11,6 +11,7 @@ import isString from 'lodash/isString';
 import ExchangeError from './errors/ExchangeError';
 import AuthenticationError from './errors/AuthenticationError';
 import stringinject from '../../utils/stringinject';
+import debug from '../../utils/debug';
 
 class Exchange {
   constructor({
@@ -74,7 +75,7 @@ class Exchange {
 
     try {
       if (this.verbose) {
-        console.log(`Request: ${baseUrl}, Path: ${path}, Options: ${JSON.stringify(options)}, Config: ${JSON.stringify(requestConfig)}`);
+        debug(`Request: ${baseUrl}, Path: ${path}, Options: ${JSON.stringify(options)}, Config: ${JSON.stringify(requestConfig)}`);
       }
 
       const response = await this.client(options);
@@ -97,9 +98,10 @@ class Exchange {
         // Something happened in setting up the request that triggered an Error
         console.log('Error', error.message);
       }
+
       console.log(error.config);
 
-      return null;
+      throw error;
     }
   }
 

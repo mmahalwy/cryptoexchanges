@@ -18,6 +18,7 @@ import {
 import GdaxParser from './GdaxParser';
 
 import { parse8601, ymdhms } from '../../utils/time';
+import debug from '../../utils/debug';
 
 class Gdax extends BaseExchange {
   static Parser = GdaxParser;
@@ -42,7 +43,7 @@ class Gdax extends BaseExchange {
     const nonce = Date.now() / 1000;
 
     if (this.verbose) {
-      console.log(`Signing with ${nonce}, method: ${method}, path: ${url}, data: ${data}`);
+      debug(`Signing with ${nonce}, method: ${method}, path: ${url}, data: ${data}`);
     }
 
     return {
