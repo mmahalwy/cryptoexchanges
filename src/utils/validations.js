@@ -1,6 +1,7 @@
 import forEach from 'lodash/forEach';
+import tail from 'lodash/tail';
+import xor from 'lodash/xor';
 
-// eslint-disable-next-line import/prefer-default-export
 export const validateRequiredParams = ({
   name,
   params,
@@ -17,4 +18,20 @@ export const validateRequiredParams = ({
   if (errors.length) {
     throw new ErrorClass(`Method ${name} requires ${errors.join(', ')} parameters`);
   }
+};
+
+export const validateSameKeys = (responses) => {
+  const firstResponseKeys = Object.keys(responses[0]);
+  const firstResponseLength = firstResponseKeys.length;
+
+  tail(responses).forEach((response) => {
+    const keys = Object.keys(response);
+
+    if (keys.length !== firstResponseLength) {
+      console.log(
+        'There is a xor between response keys',
+        xor(firstResponseKeys, keys),
+      );
+    }
+  });
 };

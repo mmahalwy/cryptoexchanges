@@ -177,7 +177,9 @@ class GdaxParser extends BaseParser {
       high: undefined,
       low: undefined,
       bid,
+      bidVolume: undefined,
       ask,
+      askVolume: undefined,
       vwap: undefined,
       open: undefined,
       close: undefined,
@@ -197,7 +199,7 @@ class GdaxParser extends BaseParser {
     const { trading } = this.exchange.constructor.FEES;
 
     markets.forEach((market) => {
-      const { id, base, quote } = market;
+      const { id, base_currency: base, quote_currency: quote } = market;
       const symbol = `${base}/${quote}`;
       const priceLimits = {
         min: market.quote_increment && parseFloat(market.quote_increment),

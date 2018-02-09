@@ -1,5 +1,4 @@
 import axios from 'axios';
-import stringinject from 'stringinject';
 import forEach from 'lodash/forEach';
 import groupBy from 'lodash/groupBy';
 import sortBy from 'lodash/sortBy';
@@ -11,6 +10,7 @@ import isString from 'lodash/isString';
 
 import ExchangeError from './errors/ExchangeError';
 import AuthenticationError from './errors/AuthenticationError';
+import stringinject from '../../utils/stringinject';
 
 class Exchange {
   constructor({

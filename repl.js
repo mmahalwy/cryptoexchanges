@@ -81,6 +81,7 @@ const reload = () => {
 reload();
 
 replServer.context.reload = reload;
+replServer.context.r = reload;
 replServer.context.log = log;
 
 require('repl.history')(replServer, historyFile);
