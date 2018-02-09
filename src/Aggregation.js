@@ -32,9 +32,9 @@ class Aggregation {
     return this.reduceResponses(responses);
   }
 
-  async fetchMyTrades({ symbol }) {
+  async fetchMarkets({ symbol }) {
     const promises = this.exchanges.map(exchange =>
-      exchange.fetchMyTrades({ symbol }));
+      exchange.fetchMarkets({ symbol }));
 
     const responses = await Promise.all(promises);
     validateSameKeys(responses);

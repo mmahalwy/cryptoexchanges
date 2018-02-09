@@ -1,3 +1,4 @@
+/* eslint-disable global-require, import/no-extraneous-dependencies */
 import repl from 'repl';
 import os from 'os';
 import path from 'path';
@@ -21,8 +22,10 @@ const log = async (promise) => {
 
     return response;
   } catch (e) {
+    // eslint-disable-next-line
     console.error(e);
-    throw e;
+
+    return null;
   }
 };
 
