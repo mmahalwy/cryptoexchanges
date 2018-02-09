@@ -168,7 +168,11 @@ class Binance extends BaseExchange {
   }
 
   async fetchOHLCV({
-    symbol, timeframe = TIMEFRAMES['1m'], since, limit, params = {},
+    symbol,
+    timeframe = TIMEFRAMES['1m'],
+    since,
+    limit = DEFAULT_OHLCV_LIMIT,
+    params = {},
   } = {}) {
     await this.loadMarkets();
 
@@ -176,9 +180,8 @@ class Binance extends BaseExchange {
     const setupParams = {
       symbol: market.id,
       interval: TIMEFRAMES[timeframe],
+      limit, // default == max == 500
     };
-
-    setupParams.limit = limit || DEFAULT_OHLCV_LIMIT; // default == max == 500
 
     if (since) {
       setupParams.startTime = since;
@@ -204,6 +207,7 @@ class Binance extends BaseExchange {
     const market = this.market(symbol);
     const setupParams = {
       symbol: market.id,
+      limit,
     };
 
     if (since) {
@@ -211,9 +215,6 @@ class Binance extends BaseExchange {
       setupParams.endTime = since + 3600000;
     }
 
-    if (limit) {
-      setupParams.limit = limit;
-    }
     // 'fromId': 123,    // ID to get aggregate trades from INCLUSIVE.
     // 'startTime': 456, // Timestamp in ms to get aggregate trades from INCLUSIVE.
     // 'endTime': 789,   // Timestamp in ms to get aggregate trades until INCLUSIVE.

@@ -75,13 +75,13 @@ class Gdax extends BaseExchange {
     return this.parser.parseBalances(balances);
   }
 
-  async fetchOrderBook({ symbol, params = {} } = {}) {
+  async fetchOrderBook({ symbol, level = 2, params = {} } = {}) {
     await this.loadMarkets();
 
     const orderbook = await this.api.public.get.productsIdBook({
       id: this.marketId(symbol),
       params: {
-        level: 2, // 1 best bidask, 2 aggregated, 3 full
+        level, // 1 best bidask, 2 aggregated, 3 full
         ...params,
       },
     });
@@ -153,24 +153,19 @@ class Gdax extends BaseExchange {
   }
 
   async fetchOHLCV({
-    symbol, timeframe = '1m', since, limit, params = {},
+    symbol, timeframe = '1m', since, limit = 350, params = {},
   } = {}) {
     await this.loadMarkets();
     const market = this.market(symbol);
     const granularity = TIMEFRAMES[timeframe];
     const setupParams = {
       granularity,
-      limit,
+      // https://docs.gdax.com/#get-historic-rates
+      limit, // max = 350
     };
 
     if (since) {
       setupParams.start = ymdhms(since);
-
-      if (!limit) {
-        // https://docs.gdax.com/#get-historic-rates
-        setupParams.limit = 350; // max = 350
-      }
-
       setupParams.end = ymdhms(sum([limit * granularity * 1000, since]));
     }
 
@@ -241,10 +236,7 @@ class Gdax extends BaseExchange {
   }
 
   async fetchClosedOrders({
-    symbol = undefined,
-    since = undefined,
-    limit = undefined,
-    params = {},
+    symbol, since, limit, params = {},
   } = {}) {
     await this.loadMarkets();
 
