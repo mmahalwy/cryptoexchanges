@@ -10,6 +10,8 @@ const makeLowerCaseVersion = (constants) => {
 
 export const ORDER_TYPES = makeLowerCaseVersion({
   LIMIT: 'LIMIT',
+  BUY: 'BUY',
+  SELL: 'SELL',
 });
 
 export const ORDER_SIDES = makeLowerCaseVersion({
@@ -27,4 +29,11 @@ export const BALANCE_TYPES = makeLowerCaseVersion({
   FREE: 'FREE',
   USED: 'USED',
   TOTAL: 'TOTAL',
+});
+
+export const MAKER = 'maker';
+export const TAKER = 'taker';
+
+export const MARKET_STATUS = makeLowerCaseVersion({
+  ONLINE: 'ONLINE',
 });

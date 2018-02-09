@@ -1,14 +1,8 @@
 import get from 'lodash/get';
 
 import BaseParser from '../base/BaseParser';
-import {
-  MAKER,
-  TAKER,
-  ORDER_TYPE,
-  BASE_ASSETS,
-  NON_BTC_TAKER,
-  MARKET_STATUS,
-} from './constants';
+import { BASE_ASSETS, NON_BTC_TAKER } from './constants';
+import { ORDER_TYPES, MARKET_STATUS, MAKER, TAKER } from '../../constants';
 import { iso8601 as iso8601Fn, parse8601 } from '../../utils/time';
 import { precisionFromString } from '../../utils/number';
 
@@ -18,9 +12,9 @@ class GdaxParser extends BaseParser {
       ? parse8601(trade.time)
       : parse8601(trade.created_at);
     const iso8601 = timestamp && iso8601Fn(timestamp);
-    const side = trade.side === ORDER_TYPE.BUY
-      ? ORDER_TYPE.SELL
-      : ORDER_TYPE.BUY;
+    const side = trade.side === ORDER_TYPES.LOWER.BUY
+      ? ORDER_TYPES.LOWER.SELL
+      : ORDER_TYPES.LOWER.BUY;
     const feeCost = parseFloat(get(trade, 'fill_fees', trade.fee));
 
     let feeRate;
@@ -29,7 +23,7 @@ class GdaxParser extends BaseParser {
     let type;
 
     if (!market) {
-      if ('product_id' in trade) {
+      if (trade.product_id) {
         const marketId = trade.product_id;
 
         if (marketsById[marketId]) {
@@ -47,7 +41,7 @@ class GdaxParser extends BaseParser {
     if (market) {
       feeCurrency = market.quote;
 
-      if ('liquidity' in trade) {
+      if (trade.liquidity) {
         const rateType = trade.liquidity === 'T' ? TAKER : MAKER;
 
         feeRate = market[rateType];
@@ -217,7 +211,7 @@ class GdaxParser extends BaseParser {
         taker = NON_BTC_TAKER;
       }
 
-      const active = market.status === MARKET_STATUS.ONLINE;
+      const active = market.status === MARKET_STATUS.LOWER.ONLINE;
 
       result.push({
         ...trading,

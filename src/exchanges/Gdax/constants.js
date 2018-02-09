@@ -1,7 +1,6 @@
 export const REQUIRED_CREDENTIALS = ['apiKey', 'apiSecret', 'password'];
 export const URLS = {
-  logo:
-    'https://user-images.githubusercontent.com/1294454/27766527-b1be41c6-5edb-11e7-95f6-5b496c469e2c.jpg',
+  logo: 'https://user-images.githubusercontent.com/1294454/27766527-b1be41c6-5edb-11e7-95f6-5b496c469e2c.jpg',
   api: {
     public: 'https://api.gdax.com',
     private: 'https://api.gdax.com',
@@ -94,7 +93,3 @@ export const BASE_ASSETS = {
 };
 
 export const NON_BTC_TAKER = 0.003;
-
-export const MARKET_STATUS = {
-  ONLINE: 'online',
-};

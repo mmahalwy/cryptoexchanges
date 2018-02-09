@@ -31,6 +31,15 @@ class Aggregation {
     validateSameKeys(responses);
     return this.reduceResponses(responses);
   }
+
+  async fetchMyTrades({ symbol }) {
+    const promises = this.exchanges.map(exchange =>
+      exchange.fetchMyTrades({ symbol }));
+
+    const responses = await Promise.all(promises);
+    validateSameKeys(responses);
+    return this.reduceResponses(responses);
+  }
 }
 
 export default Aggregation;
